@@ -184,6 +184,10 @@ body {
   opacity: 1;
   pointer-events: auto;
 }
+.ydi-publish-btn {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
 .ydi-button:hover {
   background: #555;
 }
@@ -649,7 +653,7 @@ class ChartInstance {
       <h2>${cfg.title}</h2>
       <div class="ydi-svg-container"></div>
       <div class="ydi-button-area">
-        <button class="ydi-button">${cfg.buttonText}</button>
+        <button class="ydi-button ydi-publish-btn">公開</button>
       </div>
       <div class="ydi-after-reveal">${cfg.afterRevealHTML}</div>
     `;
@@ -658,7 +662,7 @@ class ChartInstance {
     this.wrapEl = wrap;
     this.svgContainer = wrap.querySelector(".ydi-svg-container");
     this.buttonEl = wrap.querySelector(".ydi-button");
-    this.buttonEl.addEventListener("click", () => this._reveal());
+    this.buttonEl.addEventListener("click", () => publishQuiz());
   }
 
   _render() {
@@ -1540,7 +1544,6 @@ function setupToolHeader() {
       buttons: [
         { label: "保存", action: () => saveProject(), id: "save-btn" },
         { label: "読込", action: () => loadProjectList(), id: "load-btn" },
-        { label: "公開", action: () => publishQuiz(), id: "publish-btn" },
       ],
     });
   }
