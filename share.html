@@ -176,8 +176,12 @@ class ChartInstance {
     const xStep = data.length > 1 ? data[1].x - data[0].x : 1;
 
     const xScale = d3.scaleLinear().domain([startX, endX]).range([0, width]);
-    const yMax = d3.max(data, d => d.y) * cfg.yExtent;
-    const yScale = d3.scaleLinear().domain([0, yMax]).nice().range([height, 0]);
+    const yMin = d3.min(data, d => d.y);
+    const yMax = d3.max(data, d => d.y);
+    const yPad = (yMax - yMin) * (cfg.yExtent - 1) || 1;
+    const yDomainMin = yMin >= 0 ? 0 : yMin - yPad;
+    const yDomainMax = yMax + yPad;
+    const yScale = d3.scaleLinear().domain([yDomainMin, yDomainMax]).nice().range([height, 0]);
 
     const svg = d3.select(this.svgContainer).append("svg")
       .attr("width", totalWidth).attr("height", height + margin.top + margin.bottom);

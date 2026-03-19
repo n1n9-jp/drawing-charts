@@ -399,6 +399,109 @@ body {
 }
 .ydi-save-dialog-actions button.primary:hover { background: #555; }
 
+/* --- Quiz creation form --- */
+.ydi-create {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+.ydi-create h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.ydi-create label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+}
+.ydi-create input[type="text"],
+.ydi-create select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 14px;
+}
+.ydi-create input:focus,
+.ydi-create select:focus {
+  outline: none;
+  border-color: #333;
+}
+.ydi-create .ydi-field-row {
+  display: flex;
+  gap: 12px;
+}
+.ydi-create .ydi-field-row > div {
+  flex: 1;
+}
+
+/* Drop zone */
+.ydi-dropzone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  color: #999;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 14px;
+}
+.ydi-dropzone:hover,
+.ydi-dropzone.dragover {
+  border-color: #666;
+  background: #f0f0f0;
+}
+.ydi-dropzone.loaded {
+  border-color: #4caf50;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.ydi-dropzone input[type="file"] {
+  display: none;
+}
+.ydi-data-preview {
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  margin-bottom: 14px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+.ydi-data-preview table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ydi-data-preview th,
+.ydi-data-preview td {
+  padding: 4px 8px;
+  text-align: right;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ydi-data-preview th {
+  background: #f8f8f8;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+.ydi-preview-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+.ydi-preview-section h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #666;
+}
+
 /* --- Responsive --- */
 @media (max-width: 600px) {
   .you-draw-it { padding: 108px 8px 12px; }
@@ -415,7 +518,40 @@ body {
 
 <div class="you-draw-it" id="app">
   <h1>描いて答える折れ線グラフ</h1>
-  <p class="intro">グラフの続きを予測して描いてみよう。どれだけ正確に当てられるかな？</p>
+  <p class="intro">データをアップロードして、クイズを作成しよう。</p>
+
+  <!-- クイズ作成フォーム -->
+  <div class="ydi-create" id="create-form">
+    <h2>1. データをアップロード</h2>
+    <div class="ydi-dropzone" id="dropzone">
+      <p>CSVファイルをドラッグ＆ドロップ、またはクリックして選択</p>
+      <p style="font-size:0.8rem;margin-top:4px">形式: x,y（1行目はヘッダー）</p>
+      <input type="file" id="file-input" accept=".csv,.json">
+    </div>
+    <div class="ydi-data-preview" id="data-preview" style="display:none"></div>
+
+    <h2>2. クイズの設定</h2>
+    <label for="quiz-title">タイトル（質問文）</label>
+    <input type="text" id="quiz-title" placeholder="例: 日本の人口はどう推移した？">
+
+    <div class="ydi-field-row">
+      <div>
+        <label for="quiz-draw-start">ここから予測（出題範囲の開始）</label>
+        <select id="quiz-draw-start" disabled>
+          <option value="">データを先にアップロード</option>
+        </select>
+      </div>
+      <div>
+        <label for="quiz-unit">単位（任意）</label>
+        <input type="text" id="quiz-unit" placeholder="例: %, 万人, $">
+      </div>
+    </div>
+
+    <div class="ydi-preview-section" id="preview-section" style="display:none">
+      <h3>プレビュー</h3>
+      <div id="preview-container"></div>
+    </div>
+  </div>
 </div>
 
 <!-- 読込モーダル -->
@@ -461,72 +597,8 @@ body {
 //  YouDrawIt — 描いて答える折れ線グラフ テンプレート
 // ============================================================
 
-// --------------- サンプルデータ ---------------
-const chartConfigs = [
-  {
-    id: "unemployment",
-    title: "米国の失業率はオバマ政権下でどう変化した？",
-    data: [
-      { x: 2000, y: 4.0 }, { x: 2001, y: 4.7 }, { x: 2002, y: 5.8 },
-      { x: 2003, y: 6.0 }, { x: 2004, y: 5.5 }, { x: 2005, y: 5.1 },
-      { x: 2006, y: 4.6 }, { x: 2007, y: 4.6 }, { x: 2008, y: 5.8 },
-      { x: 2009, y: 9.3 }, { x: 2010, y: 9.6 }, { x: 2011, y: 8.9 },
-      { x: 2012, y: 8.1 }, { x: 2013, y: 7.4 }, { x: 2014, y: 6.2 },
-      { x: 2015, y: 5.3 }, { x: 2016, y: 4.9 },
-    ],
-    drawStartX: 2008,
-    unit: "%",
-    yFormat: ".1f",
-    precision: 1,
-    yExtent: 1.8,
-    colors: { known: "#e41a1c", actual: "#4286bc", user: "#ffc700" },
-    buttonText: "答え合わせ",
-    drawPrompt: ["線を描いて", "予測してみよう"],
-    afterRevealHTML: "オバマ政権下で失業率は9.3%のピークから4.9%まで低下しました。",
-  },
-  {
-    id: "gas-price",
-    title: "ガソリン価格（$/ガロン）はどう変化した？",
-    data: [
-      { x: 2000, y: 1.51 }, { x: 2001, y: 1.46 }, { x: 2002, y: 1.36 },
-      { x: 2003, y: 1.59 }, { x: 2004, y: 1.88 }, { x: 2005, y: 2.30 },
-      { x: 2006, y: 2.59 }, { x: 2007, y: 2.80 }, { x: 2008, y: 3.27 },
-      { x: 2009, y: 2.35 }, { x: 2010, y: 2.79 }, { x: 2011, y: 3.53 },
-      { x: 2012, y: 3.64 }, { x: 2013, y: 3.53 }, { x: 2014, y: 3.37 },
-      { x: 2015, y: 2.45 }, { x: 2016, y: 2.14 },
-    ],
-    drawStartX: 2008,
-    unit: "$",
-    yFormat: ".2f",
-    precision: 2,
-    yExtent: 1.6,
-    colors: { known: "#e41a1c", actual: "#4286bc", user: "#ffc700" },
-    buttonText: "答え合わせ",
-    drawPrompt: ["線を描いて", "予測してみよう"],
-    afterRevealHTML: "ガソリン価格は変動が激しく、2012年のピーク$3.64から2016年には$2.14に下落しました。",
-  },
-  {
-    id: "dow-jones",
-    title: "ダウ平均株価はどう推移した？",
-    data: [
-      { x: 2000, y: 10787 }, { x: 2001, y: 10022 }, { x: 2002, y: 8342 },
-      { x: 2003, y: 10454 }, { x: 2004, y: 10783 }, { x: 2005, y: 10718 },
-      { x: 2006, y: 12463 }, { x: 2007, y: 13265 }, { x: 2008, y: 8776 },
-      { x: 2009, y: 10428 }, { x: 2010, y: 11578 }, { x: 2011, y: 12218 },
-      { x: 2012, y: 13104 }, { x: 2013, y: 16577 }, { x: 2014, y: 17823 },
-      { x: 2015, y: 17425 }, { x: 2016, y: 19763 },
-    ],
-    drawStartX: 2008,
-    unit: "",
-    yFormat: ",.0f",
-    precision: 0,
-    yExtent: 1.5,
-    colors: { known: "#e41a1c", actual: "#4286bc", user: "#ffc700" },
-    buttonText: "答え合わせ",
-    drawPrompt: ["線を描いて", "予測してみよう"],
-    afterRevealHTML: "ダウ平均は2008年の暴落後、力強く回復し約20,000ドルに到達しました。",
-  },
-];
+// --------------- アップロードデータ管理 ---------------
+let uploadedData = null; // [{x, y}, ...]
 
 // --------------- デフォルト設定 ---------------
 const DEFAULTS = {
@@ -618,9 +690,13 @@ class ChartInstance {
       .domain([startX, endX])
       .range([0, width]);
 
-    const yMax = d3.max(data, d => d.y) * cfg.yExtent;
+    const yMin = d3.min(data, d => d.y);
+    const yMax = d3.max(data, d => d.y);
+    const yPad = (yMax - yMin) * (cfg.yExtent - 1) || 1;
+    const yDomainMin = yMin >= 0 ? 0 : yMin - yPad;
+    const yDomainMax = yMax + yPad;
     const yScale = d3.scaleLinear()
-      .domain([0, yMax])
+      .domain([yDomainMin, yDomainMax])
       .nice()
       .range([height, 0]);
 
@@ -901,7 +977,7 @@ class ChartInstance {
     const xStep = this.xStep;
 
     const xVal = clamp(drawStartX + xStep * 0.5, endX + xStep * 0.5, xScale.invert(mx));
-    const yVal = clamp(0, yScale.domain()[1], yScale.invert(my));
+    const yVal = clamp(yScale.domain()[0], yScale.domain()[1], yScale.invert(my));
 
     // Find last defined point for interpolation
     let lastDefinedIdx = 0;
@@ -1136,7 +1212,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const quizSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --------------- チャート描画・再描画 ---------------
-let currentConfigs = chartConfigs;
+let currentConfigs = [];
 
 function renderCharts(configs) {
   document.querySelectorAll(".ydi-chart-wrap").forEach(el => el.remove());
@@ -1225,7 +1301,7 @@ async function doSave(name) {
     const body = {
       name: name,
       app_name: APP_NAME,
-      data: { charts: currentConfigs, version: 1 },
+      data: { charts: buildConfig() ? [buildConfig()] : currentConfigs, version: 1 },
     };
     if (thumbnail) body.thumbnail = thumbnail;
 
@@ -1272,13 +1348,13 @@ document.getElementById("save-name-input").addEventListener("keydown", (e) => {
 const DEPLOY_ORIGIN = "https://drawing-line-chart.dataviz.jp";
 
 async function publishQuiz() {
-  if (!currentConfigs || currentConfigs.length === 0) {
-    showMessage("公開するチャートがありません", "error");
+  const cfg = buildConfig();
+  if (!cfg) {
+    showMessage("データをアップロードして設定を完了してください", "error");
     return;
   }
 
   try {
-    const cfg = currentConfigs[0];
     const { data, error } = await quizSupabase
       .from("quiz_quizzes")
       .insert({
@@ -1381,7 +1457,7 @@ async function loadProject(projectId) {
     const data = await res.json();
 
     if (data.charts && Array.isArray(data.charts)) {
-      renderCharts(data.charts);
+      restoreFormFromConfig(data.charts[0]);
       showMessage("読み込みました", "success");
     } else {
       throw new Error("Invalid project data format");
@@ -1435,11 +1511,24 @@ async function autoLoadFromURL() {
     const data = await res.json();
 
     if (data.charts && Array.isArray(data.charts)) {
-      renderCharts(data.charts);
+      restoreFormFromConfig(data.charts[0]);
     }
   } catch (e) {
     console.error("Auto-load failed:", e);
   }
+}
+
+// --------------- フォーム復元（読込時） ---------------
+function restoreFormFromConfig(cfg) {
+  if (!cfg || !cfg.data) return;
+  uploadedData = cfg.data;
+  onDataLoaded();
+  document.getElementById("quiz-title").value = cfg.title || "";
+  document.getElementById("quiz-unit").value = cfg.unit || "";
+  if (cfg.drawStartX) {
+    document.getElementById("quiz-draw-start").value = cfg.drawStartX;
+  }
+  updatePreview();
 }
 
 // --------------- ツールヘッダー設定 ---------------
@@ -1457,18 +1546,155 @@ function setupToolHeader() {
   }
 }
 
+// --------------- フォーム: データアップロード ---------------
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("file-input");
+const dataPreview = document.getElementById("data-preview");
+const drawStartSelect = document.getElementById("quiz-draw-start");
+const titleInput = document.getElementById("quiz-title");
+const unitInput = document.getElementById("quiz-unit");
+const previewSection = document.getElementById("preview-section");
+const previewContainer = document.getElementById("preview-container");
+
+dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzone.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+fileInput.addEventListener("change", (e) => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    try {
+      let parsed;
+      if (file.name.endsWith(".json")) {
+        parsed = JSON.parse(text);
+        if (!Array.isArray(parsed)) throw new Error("JSONは配列形式にしてください");
+      } else {
+        const rows = d3.csvParse(text);
+        const cols = Object.keys(rows[0] || {});
+        if (cols.length < 2) throw new Error("2列以上のCSVが必要です");
+        parsed = rows.map(d => {
+          const rawX = d[cols[0]];
+          const rawY = d[cols[1]];
+          // xを数値に変換（年、数値、日付の年部分に対応）
+          let x = parseFloat(rawX);
+          if (isNaN(x)) {
+            // 日付文字列から年を抽出（例: "2020-01-01" → 2020）
+            const dateMatch = String(rawX).match(/(\d{4})/);
+            if (dateMatch) x = parseInt(dateMatch[1]);
+          }
+          const y = parseFloat(String(rawY).replace(/,/g, ""));
+          return { x, y };
+        });
+      }
+      // Validate
+      parsed = parsed.filter(d => !isNaN(d.x) && !isNaN(d.y));
+      if (parsed.length < 3) throw new Error("3点以上のデータが必要です");
+      parsed.sort((a, b) => a.x - b.x);
+
+      uploadedData = parsed;
+      onDataLoaded();
+    } catch (err) {
+      showMessage("データの読み込みに失敗: " + err.message, "error");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function onDataLoaded() {
+  // Update dropzone
+  dropzone.classList.add("loaded");
+  dropzone.querySelector("p").textContent = `${uploadedData.length}件のデータを読み込みました`;
+
+  // Show data preview table
+  let html = "<table><thead><tr><th>x</th><th>y</th></tr></thead><tbody>";
+  uploadedData.forEach(d => { html += `<tr><td>${d.x}</td><td>${d.y}</td></tr>`; });
+  html += "</tbody></table>";
+  dataPreview.innerHTML = html;
+  dataPreview.style.display = "block";
+
+  // Populate drawStartX dropdown (exclude first and last)
+  drawStartSelect.innerHTML = "";
+  drawStartSelect.disabled = false;
+  const xValues = uploadedData.map(d => d.x);
+  // Default: middle-ish point
+  const midIdx = Math.floor(xValues.length / 2);
+  xValues.forEach((x, i) => {
+    if (i === 0 || i === xValues.length - 1) return; // exclude first and last
+    const opt = document.createElement("option");
+    opt.value = x;
+    opt.textContent = x;
+    if (i === midIdx) opt.selected = true;
+    drawStartSelect.appendChild(opt);
+  });
+
+  updatePreview();
+}
+
+// --------------- フォーム: プレビュー更新 ---------------
+let previewDebounce = null;
+
+function updatePreview() {
+  if (!uploadedData) return;
+  clearTimeout(previewDebounce);
+  previewDebounce = setTimeout(() => {
+    const cfg = buildConfig();
+    if (!cfg) return;
+
+    previewSection.style.display = "block";
+    previewContainer.innerHTML = "";
+    // Remove existing chart wraps from preview
+    previewContainer.querySelectorAll(".ydi-chart-wrap").forEach(el => el.remove());
+
+    currentConfigs = [cfg];
+    new ChartInstance(previewContainer, cfg);
+  }, 200);
+}
+
+function buildConfig() {
+  if (!uploadedData || uploadedData.length < 3) return null;
+  const drawStartX = parseFloat(drawStartSelect.value);
+  if (isNaN(drawStartX)) return null;
+
+  return {
+    id: "preview",
+    title: titleInput.value || "タイトル未設定",
+    data: uploadedData,
+    drawStartX: drawStartX,
+    unit: unitInput.value || "",
+    yFormat: ",.0f",
+    precision: 0,
+    yExtent: 1.5,
+    buttonText: "答え合わせ",
+    drawPrompt: ["線を描いて", "予測してみよう"],
+  };
+}
+
+// Form change listeners
+drawStartSelect.addEventListener("change", updatePreview);
+titleInput.addEventListener("input", updatePreview);
+unitInput.addEventListener("input", updatePreview);
+
 // --------------- 初期化 ---------------
-renderCharts(chartConfigs);
+// No default charts — user uploads data
 
 // ツールヘッダーはdeferで遅延読込されるため、DOMContentLoadedで設定
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", setupToolHeader);
 } else {
-  // defer script may not be ready yet, wait a tick
   setTimeout(setupToolHeader, 100);
 }
 
-// URL自動読込
+// URL自動読込（プロジェクト読込時はフォームを復元）
 autoLoadFromURL();
 </script>
 </body>
