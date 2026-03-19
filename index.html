@@ -1130,6 +1130,11 @@ class YouDrawIt {
 const API_BASE = "https://api.dataviz.jp";
 const APP_NAME = "drawing-line-chart";
 
+// --------------- Quiz用Supabaseクライアント ---------------
+const SUPABASE_URL = "https://vebhoeiltxspsurqoxvl.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmhvZWlsdHhzcHN1cnFveHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTY4MjMsImV4cCI6MjA4MDYzMjgyM30.5uf-D07Hb0JxL39X9yQ20P-5gFc1CRMdKWhDySrNZ0E";
+const quizSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // --------------- チャート描画・再描画 ---------------
 let currentConfigs = chartConfigs;
 
@@ -1267,11 +1272,6 @@ document.getElementById("save-name-input").addEventListener("keydown", (e) => {
 const DEPLOY_ORIGIN = "https://drawing-line-chart.dataviz.jp";
 
 async function publishQuiz() {
-  if (!window.datavizSupabase) {
-    showMessage("Supabaseクライアントが利用できません", "error");
-    return;
-  }
-
   if (!currentConfigs || currentConfigs.length === 0) {
     showMessage("公開するチャートがありません", "error");
     return;
@@ -1279,7 +1279,7 @@ async function publishQuiz() {
 
   try {
     const cfg = currentConfigs[0];
-    const { data, error } = await window.datavizSupabase
+    const { data, error } = await quizSupabase
       .from("quiz_quizzes")
       .insert({
         title: cfg.title || "無題のクイズ",

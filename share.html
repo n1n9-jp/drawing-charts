@@ -12,8 +12,8 @@
   gtag('js', new Date());
   gtag('config', 'G-WXY3CQ3RNF');
 </script>
-<!-- Supabase (dataviz.jp shared client) -->
-<script src="https://auth.dataviz.jp/lib/supabase.js"></script>
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- D3.js -->
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <style>
@@ -111,6 +111,11 @@ body {
 // ============================================================
 
 const DEPLOY_ORIGIN = "https://drawing-line-chart.dataviz.jp";
+
+// --------------- Quiz用Supabaseクライアント ---------------
+const SUPABASE_URL = "https://vebhoeiltxspsurqoxvl.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmhvZWlsdHhzcHN1cnFveHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNTY4MjMsImV4cCI6MjA4MDYzMjgyM30.5uf-D07Hb0JxL39X9yQ20P-5gFc1CRMdKWhDySrNZ0E";
+const quizSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DEFAULTS = {
   unit: "", yFormat: ",.0f", precision: 0, yExtent: 1.5, height: 300,
@@ -290,16 +295,6 @@ class ChartInstance {
   }
 }
 
-// --------------- Supabase待機 ---------------
-function waitForSupabase() {
-  return new Promise(resolve => {
-    if (window.datavizSupabase) return resolve(window.datavizSupabase);
-    const check = setInterval(() => {
-      if (window.datavizSupabase) { clearInterval(check); resolve(window.datavizSupabase); }
-    }, 200);
-    setTimeout(() => { clearInterval(check); resolve(null); }, 8000);
-  });
-}
 
 // --------------- 初期化 ---------------
 async function init() {
@@ -318,16 +313,8 @@ async function init() {
     return;
   }
 
-  const supabase = await waitForSupabase();
-  if (!supabase) {
-    loadingEl.style.display = "none";
-    errorEl.style.display = "block";
-    errorEl.textContent = "データベースに接続できませんでした";
-    return;
-  }
-
   try {
-    const { data: response, error } = await supabase
+    const { data: response, error } = await quizSupabase
       .from("quiz_responses")
       .select("*, quiz_quizzes(*)")
       .eq("id", responseId)
