@@ -1136,7 +1136,7 @@ class ChartInstance {
       label = "惜しい！";
       cls = "ydi-score-ok";
     } else {
-      label = avgRatio < 0.7 ? "低すぎ！" : avgRatio > 1.3 ? "高すぎ！" : "ちょっとずれてる";
+      label = avgRatio < 0.7 ? "控えめな予測でした" : avgRatio > 1.3 ? "攻めた予測でした" : "ずれていますね";
       cls = "ydi-score-off";
     }
 
@@ -1536,6 +1536,43 @@ function restoreFormFromConfig(cfg) {
 }
 
 // --------------- ツールヘッダー設定 ---------------
+// --------------- サンプルデータ ---------------
+const SAMPLE_DATA = [
+  {
+    id: "unemployment",
+    title: "米国の失業率はオバマ政権下でどう変化した？",
+    data: [
+      { x: 2000, y: 4.0 }, { x: 2001, y: 4.7 }, { x: 2002, y: 5.8 },
+      { x: 2003, y: 6.0 }, { x: 2004, y: 5.5 }, { x: 2005, y: 5.1 },
+      { x: 2006, y: 4.6 }, { x: 2007, y: 4.6 }, { x: 2008, y: 5.8 },
+      { x: 2009, y: 9.3 }, { x: 2010, y: 9.6 }, { x: 2011, y: 8.9 },
+      { x: 2012, y: 8.1 }, { x: 2013, y: 7.4 }, { x: 2014, y: 6.2 },
+      { x: 2015, y: 5.3 }, { x: 2016, y: 4.9 },
+    ],
+    drawStartX: 2008, unit: "%", yFormat: ".1f", precision: 1, yExtent: 1.8,
+  },
+  {
+    id: "population",
+    title: "日本の人口（万人）はどう推移した？",
+    data: [
+      { x: 1990, y: 12361 }, { x: 1995, y: 12557 }, { x: 2000, y: 12693 },
+      { x: 2005, y: 12777 }, { x: 2010, y: 12806 }, { x: 2015, y: 12710 },
+      { x: 2020, y: 12615 },
+    ],
+    drawStartX: 2005, unit: "万人", yFormat: ",.0f", precision: 0, yExtent: 1.2,
+  },
+  {
+    id: "visitors",
+    title: "訪日外国人数（万人）はどう増えた？",
+    data: [
+      { x: 2003, y: 521 }, { x: 2005, y: 673 }, { x: 2007, y: 835 },
+      { x: 2009, y: 679 }, { x: 2011, y: 622 }, { x: 2013, y: 1036 },
+      { x: 2015, y: 1974 }, { x: 2017, y: 2869 }, { x: 2019, y: 3188 },
+    ],
+    drawStartX: 2011, unit: "万人", yFormat: ",.0f", precision: 0, yExtent: 1.5,
+  },
+];
+
 function setupToolHeader() {
   const toolHeader = getToolHeader();
   if (toolHeader && toolHeader.setConfig) {
@@ -1544,6 +1581,13 @@ function setupToolHeader() {
       buttons: [
         { label: "保存", action: () => saveProject(), id: "save-btn" },
         { label: "読込", action: () => loadProjectList(), id: "load-btn" },
+        {
+          label: "サンプル", type: "dropdown", id: "sample-dropdown",
+          items: SAMPLE_DATA.map(s => ({
+            label: s.title,
+            action: () => restoreFormFromConfig(s),
+          })),
+        },
       ],
     });
   }
