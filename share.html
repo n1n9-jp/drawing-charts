@@ -129,7 +129,7 @@ const quizSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KE
 
 const DEFAULTS = {
   unit: "", yFormat: ",.0f", precision: 0, yExtent: 1.5, height: 300,
-  margin: { top: 20, right: 110, bottom: 40, left: 15 },
+  margin: { top: 20, right: 110, bottom: 40, left: 45 },
   colors: { known: "#e41a1c", actual: "#4286bc", user: "#ffc700" },
   buttonText: "答え合わせ",
   drawPrompt: ["線を描いて", "予測してみよう"],
@@ -177,7 +177,7 @@ class ChartInstance {
 
     const totalWidth = this.svgContainer.offsetWidth || 560;
     const margin = { ...cfg.margin };
-    if (isMobile) { margin.right = 55; margin.left = 10; }
+    if (isMobile) { margin.right = 55; margin.left = 35; }
     const width = totalWidth - margin.left - margin.right;
     const height = cfg.height;
 
