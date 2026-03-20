@@ -437,6 +437,28 @@ body {
   outline: none;
   border-color: #333;
 }
+.ydi-create .ydi-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.ydi-create .ydi-section-header h2 {
+  margin-bottom: 0;
+}
+.ydi-create .ydi-sample-select {
+  width: 140px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+.ydi-create .ydi-sample-select:focus {
+  outline: none;
+  border-color: #333;
+}
 .ydi-create .ydi-field-row {
   display: flex;
   gap: 12px;
@@ -526,7 +548,12 @@ body {
 
   <!-- クイズ作成フォーム -->
   <div class="ydi-create" id="create-form">
-    <h2>1. データをアップロード</h2>
+    <div class="ydi-section-header">
+      <h2>1. データをアップロード</h2>
+      <select class="ydi-sample-select" id="sample-select">
+        <option value="">サンプルデータ</option>
+      </select>
+    </div>
     <div class="ydi-dropzone" id="dropzone">
       <p>CSVファイルをドラッグ＆ドロップ、またはクリックして選択</p>
       <p style="font-size:0.8rem;margin-top:4px">形式: x,y（1行目はヘッダー）</p>
@@ -796,7 +823,7 @@ class ChartInstance {
       .append("rect")
       .attr("x", 0)
       .attr("y", 0)
-      .attr("width", xScale(drawStartX) + margin.left - 1)
+      .attr("width", xScale(drawStartX) + margin.left - xScale(xStep) + xScale(0))
       .attr("height", height + margin.top + margin.bottom);
 
     this.clipRect = clipRect;
@@ -882,13 +909,23 @@ class ChartInstance {
     this.userData[0].userY = midPt.y;
     this.userData[0].defined = true;
 
-    // Flash rects
-    const flashRects = g.append("g").attr("class", "ydi-flash-rects");
+    // Flash rects (clipped to drawStartX onward)
+    const drawClipId = `ydi-drawclip-${cfg.id}`;
+    svg.select("defs").append("clipPath").attr("id", drawClipId)
+      .append("rect")
+      .attr("x", xScale(drawStartX) + margin.left)
+      .attr("y", 0)
+      .attr("width", xScale(endX) - xScale(drawStartX) + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const flashRects = g.append("g").attr("class", "ydi-flash-rects")
+      .attr("clip-path", `url(#${drawClipId})`);
+    const halfStep = (xScale(xStep) - xScale(0)) / 2;
     this.flashRectsSel = flashRects.selectAll("rect")
       .data(this.userData.slice(1))
       .join("rect")
       .attr("class", "ydi-flash-rect ydi-pending")
-      .attr("x", d => xScale(d.x) - (xScale(xStep) - xScale(0)) / 2)
+      .attr("x", d => xScale(d.x) - halfStep)
       .attr("y", 0)
       .attr("width", xScale(xStep) - xScale(0))
       .attr("height", height);
@@ -1581,13 +1618,6 @@ function setupToolHeader() {
       buttons: [
         { label: "保存", action: () => saveProject(), id: "save-btn" },
         { label: "読込", action: () => loadProjectList(), id: "load-btn" },
-        {
-          label: "サンプル", type: "dropdown", id: "sample-dropdown",
-          items: SAMPLE_DATA.map(s => ({
-            label: s.title,
-            action: () => restoreFormFromConfig(s),
-          })),
-        },
       ],
     });
   }
@@ -1596,6 +1626,21 @@ function setupToolHeader() {
 // --------------- フォーム: データアップロード ---------------
 const dropzone = document.getElementById("dropzone");
 const fileInput = document.getElementById("file-input");
+const sampleSelect = document.getElementById("sample-select");
+
+// Populate sample select
+SAMPLE_DATA.forEach((s, i) => {
+  const opt = document.createElement("option");
+  opt.value = i;
+  opt.textContent = s.title;
+  sampleSelect.appendChild(opt);
+});
+sampleSelect.addEventListener("change", () => {
+  const idx = sampleSelect.value;
+  if (idx === "") return;
+  restoreFormFromConfig(SAMPLE_DATA[parseInt(idx)]);
+  sampleSelect.value = "";
+});
 const dataPreview = document.getElementById("data-preview");
 const drawStartSelect = document.getElementById("quiz-draw-start");
 const titleInput = document.getElementById("quiz-title");

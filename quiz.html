@@ -260,7 +260,7 @@ class ChartInstance {
     const clipId = `ydi-clip-${cfg.id}`;
     const clipRect = svg.append("defs").append("clipPath").attr("id", clipId)
       .append("rect").attr("x", 0).attr("y", 0)
-      .attr("width", xScale(drawStartX) + margin.left - 1).attr("height", height + margin.top + margin.bottom);
+      .attr("width", xScale(drawStartX) + margin.left - xScale(xStep) + xScale(0)).attr("height", height + margin.top + margin.bottom);
     this.clipRect = clipRect;
 
     const actualG = g.append("g").attr("clip-path", `url(#${clipId})`);
@@ -293,11 +293,20 @@ class ChartInstance {
     this.userData[0].userY = midPt.y;
     this.userData[0].defined = true;
 
-    // Flash rects
-    const flashRects = g.append("g").attr("class", "ydi-flash-rects");
+    // Flash rects (clipped to drawStartX onward)
+    const drawClipId = `ydi-drawclip-${cfg.id}`;
+    svg.select("defs").append("clipPath").attr("id", drawClipId)
+      .append("rect")
+      .attr("x", xScale(drawStartX) + margin.left).attr("y", 0)
+      .attr("width", xScale(endX) - xScale(drawStartX) + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const flashRects = g.append("g").attr("class", "ydi-flash-rects")
+      .attr("clip-path", `url(#${drawClipId})`);
+    const halfStep = (xScale(xStep) - xScale(0)) / 2;
     this.flashRectsSel = flashRects.selectAll("rect").data(this.userData.slice(1)).join("rect")
       .attr("class", "ydi-flash-rect ydi-pending")
-      .attr("x", d => xScale(d.x) - (xScale(xStep) - xScale(0)) / 2).attr("y", 0)
+      .attr("x", d => xScale(d.x) - halfStep).attr("y", 0)
       .attr("width", xScale(xStep) - xScale(0)).attr("height", height);
 
     this.userLineSel = g.append("path").attr("class", "ydi-user-line").attr("stroke", cfg.colors.user);
