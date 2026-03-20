@@ -165,6 +165,9 @@ class ChartInstance {
     this.parentEl.appendChild(wrap);
     this.wrapEl = wrap;
     this.svgContainer = wrap.querySelector(".ydi-svg-container");
+
+    this._ro = new ResizeObserver(() => this._render());
+    this._ro.observe(this.svgContainer);
   }
 
   _render() {
