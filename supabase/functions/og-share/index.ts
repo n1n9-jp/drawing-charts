@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-  return new Response(html, {
+  const body = new TextEncoder().encode(html);
+  return new Response(body, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "public, max-age=3600",
