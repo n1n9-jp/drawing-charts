@@ -262,7 +262,7 @@ class ChartInstance {
     const clipId = `ydi-clip-${cfg.id}`;
     const clipRect = svg.append("defs").append("clipPath").attr("id", clipId)
       .append("rect").attr("x", 0).attr("y", 0)
-      .attr("width", xScale(drawStartX) + margin.left).attr("height", height + margin.top + margin.bottom);
+      .attr("width", xScale(drawStartX)).attr("height", height + margin.top + margin.bottom);
     this.clipRect = clipRect;
 
     const actualG = g.append("g").attr("clip-path", `url(#${clipId})`);

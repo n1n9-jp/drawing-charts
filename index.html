@@ -825,7 +825,7 @@ class ChartInstance {
       .append("rect")
       .attr("x", 0)
       .attr("y", 0)
-      .attr("width", xScale(drawStartX) + margin.left)
+      .attr("width", xScale(drawStartX))
       .attr("height", height + margin.top + margin.bottom);
 
     this.clipRect = clipRect;
