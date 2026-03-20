@@ -1,5 +1,5 @@
 // Supabase Edge Function: OGP対応シェアページ
-// SNSクローラーにOGPメタタグを返し、人間のユーザーはshare.htmlにリダイレクトする
+// SNSクローラーにはOGPメタタグを返し、人間のユーザーには302リダイレクトする
 //
 // デプロイ: supabase functions deploy og-share --no-verify-jwt
 
@@ -11,8 +11,8 @@ const DEPLOY_ORIGIN = "https://drawing-line-chart.dataviz.jp";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// HTML特殊文字のエスケープ + 非ASCII文字を数値文字参照に変換
-// これによりレスポンスが純ASCIIになり、エンコーディング問題を回避
+const BOT_UA_PATTERN = /Twitterbot|facebookexternalhit|Facebot|LinkedInBot|Slackbot|Discordbot|LINE|Googlebot|bingbot/i;
+
 function escapeToAsciiHtml(str: string): string {
   let result = "";
   for (const ch of str) {
@@ -36,8 +36,17 @@ Deno.serve(async (req) => {
   }
 
   const shareUrl = `${DEPLOY_ORIGIN}/share.html?id=${id}`;
+  const ua = req.headers.get("user-agent") || "";
 
-  // レスポンスデータを取得
+  // 人間のブラウザには302リダイレクト
+  if (!BOT_UA_PATTERN.test(ua)) {
+    return new Response(null, {
+      status: 302,
+      headers: { "Location": shareUrl },
+    });
+  }
+
+  // SNSクローラーにはOGPメタタグを返す
   const { data: response } = await supabase
     .from("quiz_responses")
     .select("score_label, quiz_quizzes(title)")
@@ -51,8 +60,6 @@ Deno.serve(async (req) => {
   const ogTitle = `${title} &#x2014; ${scoreLabel}`;
   const ogDesc = escapeToAsciiHtml("\u6298\u308c\u7dda\u30b0\u30e9\u30d5\u306e\u4e88\u6e2c\u7d50\u679c\u3092\u30c1\u30a7\u30c3\u30af\uff01\u3042\u306a\u305f\u3082\u4e88\u6e2c\u3057\u3066\u307f\u3088\u3046");
   const siteName = escapeToAsciiHtml("\u63cf\u3044\u3066\u7b54\u3048\u308b\u6298\u308c\u7dda\u30b0\u30e9\u30d5");
-  const redirectMsg = escapeToAsciiHtml("\u30ea\u30c0\u30a4\u30ec\u30af\u30c8\u4e2d...");
-  const clickHere = escapeToAsciiHtml("\u3053\u3061\u3089\u3092\u30af\u30ea\u30c3\u30af");
   const ogImage = `${SUPABASE_URL}/storage/v1/object/public/quiz-og-images/${id}.png`;
 
   const html = `<!DOCTYPE html>
@@ -71,12 +78,9 @@ Deno.serve(async (req) => {
 <meta name="twitter:title" content="${ogTitle}">
 <meta name="twitter:description" content="${ogDesc}">
 <meta name="twitter:image" content="${ogImage}">
-<meta http-equiv="refresh" content="0;url=${shareUrl}">
 <title>${ogTitle}</title>
 </head>
-<body>
-<p>${redirectMsg} <a href="${shareUrl}">${clickHere}</a></p>
-</body>
+<body></body>
 </html>`;
 
   return new Response(html, {
