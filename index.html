@@ -929,7 +929,7 @@ class ChartInstance {
     const drawClipId = `ydi-drawclip-${cfg.id}`;
     svg.select("defs").append("clipPath").attr("id", drawClipId)
       .append("rect")
-      .attr("x", xScale(drawStartX) + margin.left)
+      .attr("x", xScale(drawStartX))
       .attr("y", 0)
       .attr("width", xScale(endX) - xScale(drawStartX) + margin.right)
       .attr("height", height + margin.top + margin.bottom);
