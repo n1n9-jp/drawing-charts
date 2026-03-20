@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>結果をみる — 描いて答える折れ線グラフ</title>
+<!-- OGP meta tags (defaults — updated dynamically via JS) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="描いて答える折れ線グラフ — 結果">
+<meta property="og:description" content="折れ線グラフの予測結果をチェック！あなたも予測してみよう">
+<meta property="og:site_name" content="描いて答える折れ線グラフ">
+<meta property="og:url" content="">
+<meta property="og:image" content="">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="描いて答える折れ線グラフ — 結果">
+<meta name="twitter:description" content="折れ線グラフの予測結果をチェック！あなたも予測してみよう">
+<meta name="twitter:image" content="">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WXY3CQ3RNF"></script>
 <script>
@@ -336,6 +347,24 @@ async function init() {
     if (!cfg.title) cfg.title = quiz.title;
 
     document.title = quiz.title + " — 結果をみる";
+
+    // Update OGP meta tags dynamically
+    const ogImageUrl = `${SUPABASE_URL}/storage/v1/object/public/og-images/${responseId}.png`;
+    const sharePageUrl = `${DEPLOY_ORIGIN}/share.html?id=${responseId}`;
+    const ogTitle = `${quiz.title} — ${response.score_label || "結果"}`;
+    const ogDesc = "折れ線グラフの予測結果をチェック！あなたも予測してみよう";
+
+    const setMeta = (attr, value, content) => {
+      const el = document.querySelector(`meta[${attr}="${value}"]`);
+      if (el) el.setAttribute("content", content);
+    };
+    setMeta("property", "og:title", ogTitle);
+    setMeta("property", "og:description", ogDesc);
+    setMeta("property", "og:url", sharePageUrl);
+    setMeta("property", "og:image", ogImageUrl);
+    setMeta("name", "twitter:title", ogTitle);
+    setMeta("name", "twitter:description", ogDesc);
+    setMeta("name", "twitter:image", ogImageUrl);
 
     // Render chart
     loadingEl.style.display = "none";
