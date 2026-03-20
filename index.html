@@ -561,7 +561,7 @@ body {
       <p style="font-size:0.8rem;margin-top:4px">形式: x,y（1行目はヘッダー）</p>
       <input type="file" id="file-input" accept=".csv,.json">
     </div>
-    <div class="ydi-field-row" id="col-select-row" style="display:none">
+    <div class="ydi-field-row" id="col-select-row" style="display:none; margin-top: 12px">
       <div>
         <label for="col-x">X軸（時系列）</label>
         <select id="col-x"></select>
@@ -571,7 +571,10 @@ body {
         <select id="col-y"></select>
       </div>
     </div>
-    <div class="ydi-data-preview" id="data-preview" style="display:none"></div>
+    <div class="ydi-field-row" id="data-preview" style="display:none">
+      <div class="ydi-data-preview" id="data-preview-x"></div>
+      <div class="ydi-data-preview" id="data-preview-y"></div>
+    </div>
 
     <h2>2. クイズの設定</h2>
     <label for="quiz-title">タイトル（質問文）</label>
@@ -1784,12 +1787,20 @@ function onDataLoaded() {
   dropzone.classList.add("loaded");
   dropzone.querySelector("p").textContent = `${uploadedData.length}件のデータを読み込みました`;
 
-  // Show data preview table
-  let html = "<table><thead><tr><th>x</th><th>y</th></tr></thead><tbody>";
-  uploadedData.forEach(d => { html += `<tr><td>${d.x}</td><td>${d.y}</td></tr>`; });
-  html += "</tbody></table>";
-  dataPreview.innerHTML = html;
-  dataPreview.style.display = "block";
+  // Show data preview tables (2 columns aligned with dropdowns)
+  const colXLabel = document.getElementById("col-x").value || "x";
+  const colYLabel = document.getElementById("col-y").value || "y";
+  let htmlX = `<table><thead><tr><th>${colXLabel}</th></tr></thead><tbody>`;
+  let htmlY = `<table><thead><tr><th>${colYLabel}</th></tr></thead><tbody>`;
+  uploadedData.forEach(d => {
+    htmlX += `<tr><td>${d.x}</td></tr>`;
+    htmlY += `<tr><td>${d.y}</td></tr>`;
+  });
+  htmlX += "</tbody></table>";
+  htmlY += "</tbody></table>";
+  document.getElementById("data-preview-x").innerHTML = htmlX;
+  document.getElementById("data-preview-y").innerHTML = htmlY;
+  dataPreview.style.display = "";
 
   // Populate drawStartX dropdown (exclude first and last)
   drawStartSelect.innerHTML = "";
