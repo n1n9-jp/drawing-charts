@@ -194,6 +194,21 @@ function drawSketchyCircle(parent, cx, cy, r, fillColor) {
   parent.append("g").call(dot);
 }
 
+function resolveVerticalOverlaps(items, minGap) {
+  if (items.length < 2) return;
+  items.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < items.length; i++) {
+    const prev = items[i - 1];
+    const curr = items[i];
+    const overlap = (prev.y + prev.height + minGap) - curr.y;
+    if (overlap > 0) {
+      curr.y = prev.y + prev.height + minGap;
+      if (curr.el) curr.el.attr("y", curr.y);
+      if (curr.legendG) curr.legendG.attr("transform", `translate(${curr.legendX},${curr.y})`);
+    }
+  }
+}
+
 function mergeConfig(cfg) {
   return {
     ...DEFAULTS,
@@ -496,13 +511,17 @@ class ChartInstance {
     legendG.append("text").attr("class", "ydi-legend-label").attr("x", 26).attr("y", 22)
       .attr("dy", "0.35em").attr("fill", cfg.colors.actual).text("実際のデータ");
 
-    // Value label collision
+    // Resolve label overlaps (value labels + legend)
     const userEndY = yScale(userData[userData.length - 1].userY);
     const actualEndY = this.actualEndY;
-    if (Math.abs(userEndY - actualEndY) < 18) {
-      const offset = userEndY < actualEndY ? -18 : 18;
-      this.userValueSel.transition().duration(300).attr("y", actualEndY + offset);
-    }
+    const legendX = width + 12;
+    const labelItems = [
+      { y: actualEndY, height: 14, el: null, id: "actual" },
+      { y: userEndY, height: 14, el: this.userValueSel, id: "user" },
+      { y: 0, height: 40, legendG, legendX, id: "legend" },
+    ];
+    resolveVerticalOverlaps(labelItems, 4);
+    this.userValueSel.transition().duration(300).attr("y", labelItems.find(i => i.id === "user").y);
 
     // Score
     const scores = userData.slice(1).map(d => d.userY / d.y);

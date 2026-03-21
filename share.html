@@ -178,6 +178,21 @@ function drawSketchyCircle(parent, cx, cy, r, fillColor) {
   parent.append("g").call(dot);
 }
 
+function resolveVerticalOverlaps(items, minGap) {
+  if (items.length < 2) return;
+  items.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < items.length; i++) {
+    const prev = items[i - 1];
+    const curr = items[i];
+    const overlap = (prev.y + prev.height + minGap) - curr.y;
+    if (overlap > 0) {
+      curr.y = prev.y + prev.height + minGap;
+      if (curr.el) curr.el.attr("y", curr.y);
+      if (curr.legendG) curr.legendG.attr("transform", `translate(${curr.legendX},${curr.y})`);
+    }
+  }
+}
+
 function mergeConfig(cfg) {
   return { ...DEFAULTS, ...cfg, margin: { ...DEFAULTS.margin, ...(cfg.margin || {}) }, colors: { ...DEFAULTS.colors, ...(cfg.colors || {}) } };
 }
@@ -380,29 +395,34 @@ class ChartInstance {
         ? this.yFmt(parseFloat(lastPt.prediction.toFixed(cfg.precision)))
         : this.yFmt(lastPt.prediction);
 
-      // Avoid collision with actual end label
       const endPt = this.data[this.data.length - 1];
-      let labelY = yScale(lastPt.prediction);
-      if (Math.abs(labelY - yScale(endPt.y)) < 18) {
-        labelY = labelY < yScale(endPt.y) ? yScale(endPt.y) - 18 : yScale(endPt.y) + 18;
-      }
-
-      g.append("text").attr("class", "ydi-value-label").attr("x", xScale(lastPt.x) + 10)
-        .attr("y", labelY).attr("dy", "0.35em").attr("fill", cfg.colors.user)
+      const userLabelEl = g.append("text").attr("class", "ydi-value-label").attr("x", xScale(lastPt.x) + 10)
+        .attr("y", yScale(lastPt.prediction)).attr("dy", "0.35em").attr("fill", cfg.colors.user)
         .text(displayVal + cfg.unit);
-    }
 
-    // Legend
-    const legendG = g.append("g").attr("class", "ydi-legend").style("opacity", 1)
-      .attr("transform", `translate(${width + 12},0)`);
-    legendG.append("line").attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
-      .attr("stroke", cfg.colors.user).attr("stroke-width", 3).attr("stroke-dasharray", "1 7").attr("stroke-linecap", "round");
-    legendG.append("text").attr("class", "ydi-legend-label").attr("x", 26).attr("y", 0)
-      .attr("dy", "0.35em").attr("fill", cfg.colors.user).text("予測");
-    legendG.append("line").attr("x1", 0).attr("x2", 20).attr("y1", 22).attr("y2", 22)
-      .attr("stroke", cfg.colors.actual).attr("stroke-width", 3).attr("stroke-linecap", "round");
-    legendG.append("text").attr("class", "ydi-legend-label").attr("x", 26).attr("y", 22)
-      .attr("dy", "0.35em").attr("fill", cfg.colors.actual).text("実際");
+      // Legend
+      // Resolve label overlaps (value labels + legend)
+      const legendX = width + 12;
+      const legendG = g.append("g").attr("class", "ydi-legend").style("opacity", 1)
+        .attr("transform", `translate(${legendX},0)`);
+      legendG.append("line").attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+        .attr("stroke", cfg.colors.user).attr("stroke-width", 3).attr("stroke-dasharray", "1 7").attr("stroke-linecap", "round");
+      legendG.append("text").attr("class", "ydi-legend-label").attr("x", 26).attr("y", 0)
+        .attr("dy", "0.35em").attr("fill", cfg.colors.user).text("予測");
+      legendG.append("line").attr("x1", 0).attr("x2", 20).attr("y1", 22).attr("y2", 22)
+        .attr("stroke", cfg.colors.actual).attr("stroke-width", 3).attr("stroke-linecap", "round");
+      legendG.append("text").attr("class", "ydi-legend-label").attr("x", 26).attr("y", 22)
+        .attr("dy", "0.35em").attr("fill", cfg.colors.actual).text("実際");
+
+      const actualEndY = yScale(endPt.y);
+      const userEndY = yScale(lastPt.prediction);
+      const labelItems = [
+        { y: actualEndY, height: 14, el: null, id: "actual" },
+        { y: userEndY, height: 14, el: userLabelEl, id: "user" },
+        { y: 0, height: 40, legendG, legendX, id: "legend" },
+      ];
+      resolveVerticalOverlaps(labelItems, 4);
+    }
   }
 }
 
