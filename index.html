@@ -25,12 +25,12 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #333;
-  background: #fff;
+  background: #ddd;
   line-height: 1.6;
 }
 
 .you-draw-it {
-  max-width: 640px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 124px 16px 20px;
 }
@@ -53,6 +53,8 @@ body {
 .ydi-chart-wrap {
   margin-bottom: 48px;
   position: relative;
+  background: #fff;
+  padding: 16px;
 }
 
 .ydi-chart-wrap h2 {
@@ -559,7 +561,20 @@ body {
       <p style="font-size:0.8rem;margin-top:4px">形式: x,y（1行目はヘッダー）</p>
       <input type="file" id="file-input" accept=".csv,.json">
     </div>
-    <div class="ydi-data-preview" id="data-preview" style="display:none"></div>
+    <div class="ydi-field-row" id="col-select-row" style="display:none; margin-top: 12px">
+      <div>
+        <label for="col-x">X軸（時系列）</label>
+        <select id="col-x"></select>
+      </div>
+      <div>
+        <label for="col-y">Y軸（数値）</label>
+        <select id="col-y"></select>
+      </div>
+    </div>
+    <div class="ydi-field-row" id="data-preview" style="display:none">
+      <div class="ydi-data-preview" id="data-preview-x"></div>
+      <div class="ydi-data-preview" id="data-preview-y"></div>
+    </div>
 
     <h2>2. クイズの設定</h2>
     <label for="quiz-title">タイトル（質問文）</label>
@@ -630,6 +645,8 @@ body {
 
 // --------------- アップロードデータ管理 ---------------
 let uploadedData = null; // [{x, y}, ...]
+let csvRawRows = null;   // CSVの生データ（列選択変更用）
+let csvCols = null;      // CSVの列名リスト
 
 // --------------- デフォルト設定 ---------------
 const DEFAULTS = {
@@ -638,7 +655,7 @@ const DEFAULTS = {
   precision: 0,
   yExtent: 1.5,
   height: 300,
-  margin: { top: 20, right: 110, bottom: 40, left: 15 },
+  margin: { top: 20, right: 130, bottom: 40, left: 55 },
   colors: { known: "#e41a1c", actual: "#4286bc", user: "#ffc700" },
   buttonText: "答え合わせ",
   drawPrompt: ["線を描いて", "予測してみよう"],
@@ -702,8 +719,8 @@ class ChartInstance {
     const totalWidth = this.svgContainer.offsetWidth || 560;
     const margin = { ...cfg.margin };
     if (isMobile) {
-      margin.right = 55;
-      margin.left = 10;
+      margin.right = 70;
+      margin.left = 40;
     }
     const width = totalWidth - margin.left - margin.right;
     const height = cfg.height;
@@ -823,7 +840,7 @@ class ChartInstance {
       .append("rect")
       .attr("x", 0)
       .attr("y", 0)
-      .attr("width", xScale(drawStartX) + margin.left - xScale(xStep) + xScale(0))
+      .attr("width", xScale(drawStartX))
       .attr("height", height + margin.top + margin.bottom);
 
     this.clipRect = clipRect;
@@ -877,10 +894,9 @@ class ChartInstance {
 
     g.append("text")
       .attr("class", "ydi-value-label")
-      .attr("x", xScale(startPt.x) - 10)
-      .attr("y", yScale(startPt.y))
-      .attr("dy", "0.35em")
-      .attr("text-anchor", "end")
+      .attr("x", xScale(startPt.x))
+      .attr("y", yScale(startPt.y) - 12)
+      .attr("text-anchor", "middle")
       .attr("fill", cfg.colors.known)
       .text(yFmt(startPt.y) + cfg.unit);
 
@@ -913,7 +929,7 @@ class ChartInstance {
     const drawClipId = `ydi-drawclip-${cfg.id}`;
     svg.select("defs").append("clipPath").attr("id", drawClipId)
       .append("rect")
-      .attr("x", xScale(drawStartX) + margin.left)
+      .attr("x", xScale(drawStartX))
       .attr("y", 0)
       .attr("width", xScale(endX) - xScale(drawStartX) + margin.right)
       .attr("height", height + margin.top + margin.bottom);
@@ -1661,6 +1677,49 @@ fileInput.addEventListener("change", (e) => {
   if (e.target.files[0]) handleFile(e.target.files[0]);
 });
 
+// 時系列列判定: 年(4桁数値)または日付文字列を含む列
+function isTimeSeriesCol(rows, col) {
+  const sample = rows.slice(0, Math.min(10, rows.length));
+  return sample.filter(r => {
+    const v = String(r[col]).trim();
+    return /^\d{4}$/.test(v) || /\d{4}[-\/]/.test(v);
+  }).length > sample.length * 0.5;
+}
+// 数値列判定: 大半の行が数値に変換できる列
+function isNumericCol(rows, col) {
+  const sample = rows.slice(0, Math.min(10, rows.length));
+  return sample.filter(r => !isNaN(parseFloat(String(r[col]).replace(/,/g, "")))).length > sample.length * 0.5;
+}
+
+// 選択中の列でデータをパースし直す
+function parseWithColumns(xColName, yColName) {
+  if (!csvRawRows) return;
+  const parsed = csvRawRows.map(d => {
+    const rawX = d[xColName];
+    const rawY = d[yColName];
+    let x = parseFloat(rawX);
+    if (isNaN(x)) {
+      const dateMatch = String(rawX).match(/(\d{4})/);
+      if (dateMatch) x = parseInt(dateMatch[1]);
+    }
+    const y = parseFloat(String(rawY).replace(/,/g, ""));
+    return { x, y };
+  }).filter(d => !isNaN(d.x) && !isNaN(d.y));
+
+  if (parsed.length < 2) {
+    showMessage("有効なデータが2行未満です。列の選択を確認してください。", "error");
+    return;
+  }
+  const dupX = parsed.map(d => d.x).filter((v, i, a) => a.indexOf(v) !== i);
+  if (dupX.length > 0) {
+    showMessage("X軸に重複があります。データを整理してください。", "error");
+    return;
+  }
+  parsed.sort((a, b) => a.x - b.x);
+  uploadedData = parsed;
+  onDataLoaded();
+}
+
 function handleFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -1670,17 +1729,35 @@ function handleFile(file) {
       if (file.name.endsWith(".json")) {
         parsed = JSON.parse(text);
         if (!Array.isArray(parsed)) throw new Error("JSONは配列形式にしてください");
+        csvRawRows = null;
+        csvCols = null;
+        document.getElementById("col-select-row").style.display = "none";
       } else {
         const rows = d3.csvParse(text);
         const cols = Object.keys(rows[0] || {});
         if (cols.length < 2) throw new Error("2列以上のCSVが必要です");
+
+        csvRawRows = rows;
+        csvCols = cols;
+
+        // 自動検出
+        const autoX = cols.find(c => isTimeSeriesCol(rows, c));
+        const autoY = cols.find(c => c !== autoX && isNumericCol(rows, c));
+        if (!autoX || !autoY) throw new Error("時系列列と数値列が見つかりません");
+
+        // ドロップダウンを設定（Y軸は数値列のみ）
+        const colXSel = document.getElementById("col-x");
+        const colYSel = document.getElementById("col-y");
+        const numericCols = cols.filter(c => isNumericCol(rows, c));
+        colXSel.innerHTML = cols.map(c => `<option value="${c}"${c === autoX ? " selected" : ""}>${c}</option>`).join("");
+        colYSel.innerHTML = numericCols.map(c => `<option value="${c}"${c === autoY ? " selected" : ""}>${c}</option>`).join("");
+        document.getElementById("col-select-row").style.display = "";
+
         parsed = rows.map(d => {
-          const rawX = d[cols[0]];
-          const rawY = d[cols[1]];
-          // xを数値に変換（年、数値、日付の年部分に対応）
+          const rawX = d[autoX];
+          const rawY = d[autoY];
           let x = parseFloat(rawX);
           if (isNaN(x)) {
-            // 日付文字列から年を抽出（例: "2020-01-01" → 2020）
             const dateMatch = String(rawX).match(/(\d{4})/);
             if (dateMatch) x = parseInt(dateMatch[1]);
           }
@@ -1690,7 +1767,11 @@ function handleFile(file) {
       }
       // Validate
       parsed = parsed.filter(d => !isNaN(d.x) && !isNaN(d.y));
-      if (parsed.length < 3) throw new Error("3点以上のデータが必要です");
+      if (parsed.length < 2) throw new Error("2点以上のデータが必要です");
+      const dupX = parsed.map(d => d.x).filter((v, i, a) => a.indexOf(v) !== i);
+      if (dupX.length > 0) {
+        throw new Error("X軸に重複があります。データを整理してください。");
+      }
       parsed.sort((a, b) => a.x - b.x);
 
       uploadedData = parsed;
@@ -1702,17 +1783,33 @@ function handleFile(file) {
   reader.readAsText(file);
 }
 
+// 列選択ドロップダウンの変更イベント
+document.getElementById("col-x").addEventListener("change", () => {
+  parseWithColumns(document.getElementById("col-x").value, document.getElementById("col-y").value);
+});
+document.getElementById("col-y").addEventListener("change", () => {
+  parseWithColumns(document.getElementById("col-x").value, document.getElementById("col-y").value);
+});
+
 function onDataLoaded() {
   // Update dropzone
   dropzone.classList.add("loaded");
   dropzone.querySelector("p").textContent = `${uploadedData.length}件のデータを読み込みました`;
 
-  // Show data preview table
-  let html = "<table><thead><tr><th>x</th><th>y</th></tr></thead><tbody>";
-  uploadedData.forEach(d => { html += `<tr><td>${d.x}</td><td>${d.y}</td></tr>`; });
-  html += "</tbody></table>";
-  dataPreview.innerHTML = html;
-  dataPreview.style.display = "block";
+  // Show data preview tables (2 columns aligned with dropdowns)
+  const colXLabel = document.getElementById("col-x").value || "x";
+  const colYLabel = document.getElementById("col-y").value || "y";
+  let htmlX = `<table><thead><tr><th>${colXLabel}</th></tr></thead><tbody>`;
+  let htmlY = `<table><thead><tr><th>${colYLabel}</th></tr></thead><tbody>`;
+  uploadedData.forEach(d => {
+    htmlX += `<tr><td>${d.x}</td></tr>`;
+    htmlY += `<tr><td>${d.y}</td></tr>`;
+  });
+  htmlX += "</tbody></table>";
+  htmlY += "</tbody></table>";
+  document.getElementById("data-preview-x").innerHTML = htmlX;
+  document.getElementById("data-preview-y").innerHTML = htmlY;
+  dataPreview.style.display = "";
 
   // Populate drawStartX dropdown (exclude first and last)
   drawStartSelect.innerHTML = "";

@@ -22,12 +22,12 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #333;
-  background: #fff;
+  background: #ddd;
   line-height: 1.6;
 }
 
 .quiz-app {
-  max-width: 640px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 32px 16px 20px;
 }
@@ -45,6 +45,8 @@ body {
 .ydi-chart-wrap {
   margin-bottom: 48px;
   position: relative;
+  background: #fff;
+  padding: 16px;
 }
 .ydi-chart-wrap h2 {
   font-size: 1.15rem;
@@ -142,7 +144,7 @@ const DEFAULTS = {
   precision: 0,
   yExtent: 1.5,
   height: 300,
-  margin: { top: 20, right: 110, bottom: 40, left: 15 },
+  margin: { top: 20, right: 130, bottom: 40, left: 55 },
   colors: { known: "#e41a1c", actual: "#4286bc", user: "#ffc700" },
   buttonText: "答え合わせ",
   drawPrompt: ["線を描いて", "予測してみよう"],
@@ -199,7 +201,7 @@ class ChartInstance {
 
     const totalWidth = this.svgContainer.offsetWidth || 560;
     const margin = { ...cfg.margin };
-    if (isMobile) { margin.right = 55; margin.left = 10; }
+    if (isMobile) { margin.right = 70; margin.left = 40; }
     const width = totalWidth - margin.left - margin.right;
     const height = cfg.height;
 
@@ -260,7 +262,7 @@ class ChartInstance {
     const clipId = `ydi-clip-${cfg.id}`;
     const clipRect = svg.append("defs").append("clipPath").attr("id", clipId)
       .append("rect").attr("x", 0).attr("y", 0)
-      .attr("width", xScale(drawStartX) + margin.left - xScale(xStep) + xScale(0)).attr("height", height + margin.top + margin.bottom);
+      .attr("width", xScale(drawStartX)).attr("height", height + margin.top + margin.bottom);
     this.clipRect = clipRect;
 
     const actualG = g.append("g").attr("clip-path", `url(#${clipId})`);
@@ -277,8 +279,8 @@ class ChartInstance {
     // Start & mid markers
     const startPt = data[0];
     g.append("circle").attr("cx", xScale(startPt.x)).attr("cy", yScale(startPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
-    g.append("text").attr("class", "ydi-value-label").attr("x", xScale(startPt.x) - 10).attr("y", yScale(startPt.y))
-      .attr("dy", "0.35em").attr("text-anchor", "end").attr("fill", cfg.colors.known).text(yFmt(startPt.y) + cfg.unit);
+    g.append("text").attr("class", "ydi-value-label").attr("x", xScale(startPt.x)).attr("y", yScale(startPt.y) - 12)
+      .attr("text-anchor", "middle").attr("fill", cfg.colors.known).text(yFmt(startPt.y) + cfg.unit);
 
     const midPt = data[drawStartIndex];
     g.append("circle").attr("cx", xScale(midPt.x)).attr("cy", yScale(midPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
@@ -297,7 +299,7 @@ class ChartInstance {
     const drawClipId = `ydi-drawclip-${cfg.id}`;
     svg.select("defs").append("clipPath").attr("id", drawClipId)
       .append("rect")
-      .attr("x", xScale(drawStartX) + margin.left).attr("y", 0)
+      .attr("x", xScale(drawStartX)).attr("y", 0)
       .attr("width", xScale(endX) - xScale(drawStartX) + margin.right)
       .attr("height", height + margin.top + margin.bottom);
 
@@ -459,6 +461,118 @@ class ChartInstance {
 // --------------- Supabaseクライアント初期化 ---------------
 const quizSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// --------------- OG画像生成 ---------------
+async function generateOgImage(svgEl, title, scoreLabel) {
+  const clone = svgEl.cloneNode(true);
+
+  // clip-pathを除去して実データ線を完全表示
+  clone.querySelectorAll("[clip-path]").forEach(el => el.removeAttribute("clip-path"));
+  // 不要な要素を除去
+  clone.querySelectorAll(".ydi-flash-rect, .ydi-drag-rect, .ydi-draw-prompt").forEach(el => el.remove());
+
+  const origW = parseFloat(clone.getAttribute("width"));
+  const origH = parseFloat(clone.getAttribute("height"));
+  const ogW = 1200;
+  const ogH = 630;
+
+  // ラッパーSVGを作成
+  const ns = "http://www.w3.org/2000/svg";
+  const wrapper = document.createElementNS(ns, "svg");
+  wrapper.setAttribute("xmlns", ns);
+  wrapper.setAttribute("width", ogW);
+  wrapper.setAttribute("height", ogH);
+  wrapper.setAttribute("viewBox", `0 0 ${ogW} ${ogH}`);
+
+  // 白背景
+  const bg = document.createElementNS(ns, "rect");
+  bg.setAttribute("width", ogW);
+  bg.setAttribute("height", ogH);
+  bg.setAttribute("fill", "white");
+  wrapper.appendChild(bg);
+
+  // インラインスタイル
+  const styleEl = document.createElementNS(ns, "style");
+  styleEl.textContent = `
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .ydi-grid line { stroke: #e0e0e0; stroke-width: 1; }
+    .axis path, .axis line { stroke: #ccc; }
+    .axis text { fill: #888; font-size: 12px; }
+    .ydi-known-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .ydi-actual-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .ydi-area { opacity: 0.12; }
+    .ydi-user-line { fill: none; stroke-width: 3; stroke-dasharray: 1 7; stroke-linecap: round; }
+    .ydi-value-label { font-size: 13px; font-weight: 700; }
+    .ydi-divider { stroke: #ccc; stroke-width: 1; stroke-dasharray: 4 3; }
+    .ydi-legend-label { font-size: 12px; font-weight: 600; }
+  `;
+  wrapper.appendChild(styleEl);
+
+  // タイトル
+  const titleEl = document.createElementNS(ns, "text");
+  titleEl.setAttribute("x", ogW / 2);
+  titleEl.setAttribute("y", 48);
+  titleEl.setAttribute("text-anchor", "middle");
+  titleEl.setAttribute("font-size", "28");
+  titleEl.setAttribute("font-weight", "600");
+  titleEl.setAttribute("fill", "#333");
+  titleEl.textContent = title;
+  wrapper.appendChild(titleEl);
+
+  // チャートをスケーリングして配置
+  const chartG = document.createElementNS(ns, "g");
+  const scale = Math.min((ogW - 80) / origW, (ogH - 150) / origH);
+  const dx = (ogW - origW * scale) / 2;
+  const dy = 75;
+  chartG.setAttribute("transform", `translate(${dx},${dy}) scale(${scale})`);
+  while (clone.firstChild) chartG.appendChild(clone.firstChild);
+  wrapper.appendChild(chartG);
+
+  // スコアラベル
+  const scoreEl = document.createElementNS(ns, "text");
+  scoreEl.setAttribute("x", ogW / 2);
+  scoreEl.setAttribute("y", ogH - 28);
+  scoreEl.setAttribute("text-anchor", "middle");
+  scoreEl.setAttribute("font-size", "24");
+  scoreEl.setAttribute("font-weight", "700");
+  scoreEl.setAttribute("fill", "#555");
+  scoreEl.textContent = scoreLabel;
+  wrapper.appendChild(scoreEl);
+
+  // SVG → Canvas → PNG Blob
+  const serializer = new XMLSerializer();
+  const svgString = serializer.serializeToString(wrapper);
+  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = ogW;
+      canvas.height = ogH;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, ogW, ogH);
+      ctx.drawImage(img, 0, 0, ogW, ogH);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("toBlob failed")), "image/png");
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("SVG render failed")); };
+    img.src = url;
+  });
+}
+
+async function uploadOgImage(responseId, pngBlob) {
+  const { error } = await quizSupabase.storage
+    .from("quiz-og-images")
+    .upload(`${responseId}.png`, pngBlob, { contentType: "image/png", upsert: true });
+  if (error) {
+    console.warn("OG image upload failed:", error.message);
+    return null;
+  }
+  return `${SUPABASE_URL}/storage/v1/object/public/quiz-og-images/${responseId}.png`;
+}
+
 // --------------- 初期化 ---------------
 async function init() {
   const loadingEl = document.getElementById("quiz-loading");
@@ -518,26 +632,38 @@ async function init() {
 
         if (insertErr) throw insertErr;
 
-        // Show share URL
+        // Share URLs
         const shareUrl = `${DEPLOY_ORIGIN}/share.html?id=${response.id}`;
+        // OGP対応シェアURL（Supabase Edge Function経由）
+        const ogShareUrl = `${SUPABASE_URL}/functions/v1/og-share?id=${response.id}`;
+
         const afterEl = containerEl.querySelector(".ydi-after-reveal");
         const existing = afterEl.innerHTML;
         afterEl.innerHTML = existing + `
           <div class="ydi-share-area">
             <p style="margin-top:12px;font-weight:600">結果をシェアしよう</p>
-            <div class="ydi-share-url">
-              <input type="text" value="${shareUrl}" readonly id="share-url-input">
-              <button class="ydi-share-btn" id="share-copy-btn">コピー</button>
+            <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+              <a class="ydi-share-btn" id="share-x-btn" href="https://x.com/intent/tweet?url=${encodeURIComponent(ogShareUrl)}&text=${encodeURIComponent(quiz.title + "　" + label)}" target="_blank" rel="noopener">𝕏 でシェア</a>
+              <button class="ydi-share-btn" id="share-copy-btn">URLをコピー</button>
             </div>
           </div>
         `;
 
         document.getElementById("share-copy-btn").addEventListener("click", () => {
-          navigator.clipboard.writeText(shareUrl).then(() => {
+          navigator.clipboard.writeText(ogShareUrl).then(() => {
             document.getElementById("share-copy-btn").textContent = "コピー済み";
-            setTimeout(() => { document.getElementById("share-copy-btn").textContent = "コピー"; }, 2000);
+            setTimeout(() => { document.getElementById("share-copy-btn").textContent = "URLをコピー"; }, 2000);
           });
         });
+
+        // OG画像を生成・アップロード（非同期・失敗しても問題なし）
+        try {
+          const svgEl = containerEl.querySelector("svg");
+          const pngBlob = await generateOgImage(svgEl, quiz.title, label);
+          await uploadOgImage(response.id, pngBlob);
+        } catch (ogErr) {
+          console.warn("OG image generation/upload failed:", ogErr);
+        }
       } catch (saveErr) {
         console.error("Response save failed:", saveErr);
       }
