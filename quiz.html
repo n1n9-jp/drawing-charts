@@ -12,6 +12,10 @@
   gtag('js', new Date());
   gtag('config', 'G-WXY3CQ3RNF');
 </script>
+<!-- dataviz.jp 共通ヘッダー -->
+<script src="https://auth.dataviz.jp/lib/supabase.js"></script>
+<script src="https://auth.dataviz.jp/lib/dataviz-auth-client.js"></script>
+<script src="https://auth.dataviz.jp/lib/dataviz-tool-header.js" defer></script>
 <!-- Supabase JS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- D3.js -->
@@ -29,7 +33,7 @@ body {
 .quiz-app {
   max-width: 800px;
   margin: 0 auto;
-  padding: 32px 16px 20px;
+  padding: 124px 16px 20px;
 }
 
 /* Loading / Error states */
@@ -111,7 +115,7 @@ body {
 .ydi-share-btn:hover { background: #e0e0e0; }
 
 @media (max-width: 600px) {
-  .quiz-app { padding: 20px 8px 12px; }
+  .quiz-app { padding: 108px 8px 12px; }
   .ydi-chart-wrap h2 { font-size: 1rem; }
   .ydi-draw-prompt { font-size: 13px; }
   .ydi-value-label { font-size: 11px; }
@@ -119,6 +123,8 @@ body {
 </style>
 </head>
 <body>
+
+<dataviz-tool-header></dataviz-tool-header>
 
 <div class="quiz-app" id="app">
   <div class="quiz-loading" id="quiz-loading">読み込み中...</div>
@@ -678,6 +684,26 @@ async function init() {
 }
 
 init();
+
+// --------------- ツールヘッダー設定 ---------------
+function getToolHeader() {
+  return document.querySelector("dataviz-tool-header");
+}
+
+function setupToolHeader() {
+  const toolHeader = getToolHeader();
+  if (toolHeader && toolHeader.setConfig) {
+    toolHeader.setConfig({
+      logo: { type: "text", text: "描いて答える折れ線グラフ" },
+    });
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", setupToolHeader);
+} else {
+  setTimeout(setupToolHeader, 100);
+}
 </script>
 </body>
 </html>
