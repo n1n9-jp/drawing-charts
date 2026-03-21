@@ -27,13 +27,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- D3.js -->
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="d3.sketchy.js"></script>
+<link href="https://fonts.googleapis.com/css?family=Patrick+Hand" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Patrick Hand', 'Comic Sans MS', cursive, sans-serif;
   color: #333;
-  background: #ddd;
+  background: #f5f0e1;
   line-height: 1.6;
 }
 
@@ -51,20 +53,21 @@ body {
 }
 .share-error { color: #c00; }
 
-/* --- Chart styles --- */
-.ydi-chart-wrap { margin-bottom: 24px; position: relative; background: #fff; padding: 16px; }
-.ydi-chart-wrap h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; text-align: center; }
-.ydi-chart-wrap svg { display: block; margin: 0 auto; overflow: visible; font: 300 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-.ydi-grid line { stroke: #e0e0e0; stroke-width: 1; shape-rendering: crispEdges; }
-.ydi-chart-wrap .axis path, .ydi-chart-wrap .axis line { stroke: #ccc; shape-rendering: crispEdges; }
-.ydi-chart-wrap .axis text { fill: #888; font-size: 12px; }
+/* --- Chart styles (sketchy) --- */
+.ydi-chart-wrap { margin-bottom: 24px; position: relative; background: #fffdf7; padding: 16px; border-radius: 4px; box-shadow: 2px 3px 12px rgba(0,0,0,0.1); transform: rotate(-0.3deg); }
+.ydi-chart-wrap h2 { font-size: 1.3rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; text-align: center; font-family: 'Patrick Hand', cursive; }
+.ydi-chart-wrap svg { display: block; margin: 0 auto; overflow: visible; font: 300 14px/1.2 'Patrick Hand', cursive; }
+.ydi-grid line { stroke: #c8ddf0; stroke-width: 0.8; opacity: 0.6; }
+.ydi-chart-wrap .axis path, .ydi-chart-wrap .axis .domain { display: none; }
+.ydi-chart-wrap .axis .tick line { stroke: #bbb; stroke-width: 0.5; }
+.ydi-chart-wrap .axis text { fill: #555; font-size: 14px; font-family: 'Patrick Hand', cursive; }
 .ydi-known-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .ydi-actual-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .ydi-area { opacity: 0.12; }
 .ydi-user-line { fill: none; stroke-width: 3; stroke-dasharray: 1 7; stroke-linecap: round; }
-.ydi-value-label { font-size: 13px; font-weight: 700; }
+.ydi-value-label { font-size: 14px; font-weight: 700; font-family: 'Patrick Hand', cursive; }
 .ydi-divider { stroke: #ccc; stroke-width: 1; stroke-dasharray: 4 3; shape-rendering: crispEdges; }
-.ydi-legend-label { font-size: 12px; font-weight: 600; }
+.ydi-legend-label { font-size: 13px; font-weight: 600; font-family: 'Patrick Hand', cursive; }
 .ydi-button-area { display: none; }
 .ydi-after-reveal { display: none; }
 
@@ -138,6 +141,32 @@ const DEFAULTS = {
 };
 
 function clamp(min, max, val) { return Math.max(min, Math.min(max, val)); }
+
+// 手書き風ライン: データポイント間にjitterを加えてcurveBasisで補間
+function sketchyLinePath(points) {
+  const result = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x0, y0] = points[i];
+    const [x1, y1] = points[i + 1];
+    const steps = 8;
+    for (let j = 0; j <= steps; j++) {
+      const t = j / steps;
+      const jitterScale = Math.sin(t * Math.PI) * 2.5;
+      result.push([
+        x0 + (x1 - x0) * t + (Math.random() - 0.5) * jitterScale,
+        y0 + (y1 - y0) * t + (Math.random() - 0.5) * jitterScale,
+      ]);
+    }
+  }
+  return d3.line().curve(d3.curveBasis)(result);
+}
+
+// 手書き風の丸を描画
+function drawSketchyCircle(parent, cx, cy, r, fillColor) {
+  const dot = d3.sketchy.circle();
+  dot.radius(r).cx(cx).cy(cy).fill(fillColor).stroke(fillColor).strokeWidth(6);
+  parent.append("g").call(dot);
+}
 
 function mergeConfig(cfg) {
   return { ...DEFAULTS, ...cfg, margin: { ...DEFAULTS.margin, ...(cfg.margin || {}) }, colors: { ...DEFAULTS.colors, ...(cfg.colors || {}) } };
@@ -234,31 +263,45 @@ class ChartInstance {
     g.append("line").attr("class", "ydi-divider")
       .attr("x1", xScale(drawStartX)).attr("x2", xScale(drawStartX)).attr("y1", 0).attr("y2", height);
 
-    const line = d3.line().x(d => xScale(d.x)).y(d => yScale(d.y));
+    // Helper: convert data array to [x, y] points
+    const toPoints = (arr) => arr.map(d => [xScale(d.x), yScale(d.y)]);
 
-    // Known line
+    // Known line (sketchy 2-pass)
+    const knownData = data.filter(d => d.x <= drawStartX);
+    const knownPts = toPoints(knownData);
     g.append("path").attr("class", "ydi-known-line")
-      .attr("d", line(data.filter(d => d.x <= drawStartX))).attr("stroke", cfg.colors.known);
+      .attr("d", sketchyLinePath(knownPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.known, 0.03))
+      .style("stroke-width", 3.5).style("opacity", 0.35);
+    g.append("path").attr("class", "ydi-known-line")
+      .attr("d", sketchyLinePath(knownPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.known, 0.03))
+      .style("stroke-width", 2).style("opacity", 0.85);
 
-    // Actual line (fully visible — no clipPath)
+    // Actual line (sketchy 2-pass, fully visible — no clipPath)
     const actualData = data.filter(d => d.x >= drawStartX);
+    const actualPts = toPoints(actualData);
     const area = d3.area().x(d => xScale(d.x)).y0(height).y1(d => yScale(d.y));
     g.append("path").attr("class", "ydi-area").attr("d", area(actualData)).attr("fill", cfg.colors.actual);
-    g.append("path").attr("class", "ydi-actual-line").attr("d", line(actualData)).attr("stroke", cfg.colors.actual);
+    g.append("path").attr("class", "ydi-actual-line")
+      .attr("d", sketchyLinePath(actualPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.actual, 0.03))
+      .style("stroke-width", 3.5).style("opacity", 0.35);
+    g.append("path").attr("class", "ydi-actual-line")
+      .attr("d", sketchyLinePath(actualPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.actual, 0.03))
+      .style("stroke-width", 2).style("opacity", 0.85);
 
+    // End point (sketchy circle)
     const endPt = data[data.length - 1];
-    g.append("circle").attr("cx", xScale(endPt.x)).attr("cy", yScale(endPt.y)).attr("r", 5).attr("fill", cfg.colors.actual);
+    drawSketchyCircle(g, xScale(endPt.x), yScale(endPt.y), 4, cfg.colors.actual);
     g.append("text").attr("class", "ydi-value-label").attr("x", xScale(endPt.x) + 10)
       .attr("y", yScale(endPt.y)).attr("dy", "0.35em").attr("fill", cfg.colors.actual).text(yFmt(endPt.y) + cfg.unit);
 
-    // Start & mid markers
+    // Start & mid markers (sketchy circles)
     const startPt = data[0];
-    g.append("circle").attr("cx", xScale(startPt.x)).attr("cy", yScale(startPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
+    drawSketchyCircle(g, xScale(startPt.x), yScale(startPt.y), 4, cfg.colors.known);
     g.append("text").attr("class", "ydi-value-label").attr("x", xScale(startPt.x)).attr("y", yScale(startPt.y) - 12)
       .attr("text-anchor", "middle").attr("fill", cfg.colors.known).text(yFmt(startPt.y) + cfg.unit);
 
     const midPt = data[drawStartIndex];
-    g.append("circle").attr("cx", xScale(midPt.x)).attr("cy", yScale(midPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
+    drawSketchyCircle(g, xScale(midPt.x), yScale(midPt.y), 4, cfg.colors.known);
     const midLabelDy = drawStartIndex > 0 && midPt.y > data[drawStartIndex - 1].y ? -12 : 16;
     g.append("text").attr("class", "ydi-value-label").attr("x", xScale(midPt.x) - 8)
       .attr("y", yScale(midPt.y) + midLabelDy).attr("text-anchor", "end").attr("fill", cfg.colors.known)
@@ -275,18 +318,22 @@ class ChartInstance {
     this._predictionData = predictionData;
     const { xScale, yScale, g, cfg, width } = this;
 
-    // Draw user prediction line
-    const userLine = d3.line()
-      .defined(d => d.prediction != null)
-      .x(d => xScale(d.x))
-      .y(d => yScale(d.prediction));
-    g.append("path").attr("class", "ydi-user-line").attr("d", userLine(predictionData)).attr("stroke", cfg.colors.user);
+    // Draw user prediction line (sketchy 2-pass)
+    const validPts = predictionData.filter(d => d.prediction != null);
+    const userPts = validPts.map(d => [xScale(d.x), yScale(d.prediction)]);
+    if (userPts.length > 1) {
+      g.append("path").attr("class", "ydi-user-line")
+        .attr("d", sketchyLinePath(userPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.user, 0.03))
+        .style("stroke-width", 3.5).style("opacity", 0.35).style("stroke-dasharray", "none");
+      g.append("path").attr("class", "ydi-user-line")
+        .attr("d", sketchyLinePath(userPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.user, 0.03))
+        .style("stroke-width", 2).style("opacity", 0.85).style("stroke-dasharray", "none");
+    }
 
-    // User endpoint
+    // User endpoint (sketchy circle)
     const lastPt = predictionData[predictionData.length - 1];
     if (lastPt) {
-      g.append("circle").attr("cx", xScale(lastPt.x)).attr("cy", yScale(lastPt.prediction))
-        .attr("r", 5).attr("fill", cfg.colors.user);
+      drawSketchyCircle(g, xScale(lastPt.x), yScale(lastPt.prediction), 4, cfg.colors.user);
 
       const displayVal = cfg.precision
         ? this.yFmt(parseFloat(lastPt.prediction.toFixed(cfg.precision)))
