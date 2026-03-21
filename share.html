@@ -65,6 +65,8 @@ body {
 .ydi-actual-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .ydi-area { opacity: 0.12; }
 .ydi-user-line { fill: none; stroke-width: 3; stroke-dasharray: 1 7; stroke-linecap: round; }
+.ydi-annotations rect { pointer-events: none; }
+.ydi-annotations text { pointer-events: none; }
 .ydi-value-label { font-size: 13px; font-weight: 700; }
 .ydi-divider { stroke: #ccc; stroke-width: 1; stroke-dasharray: 4 3; shape-rendering: crispEdges; }
 .ydi-legend-label { font-size: 12px; font-weight: 600; }
@@ -269,6 +271,26 @@ class ChartInstance {
       .attr("x1", d => xScale(d)).attr("x2", d => xScale(d)).attr("y1", 0).attr("y2", height);
     gridG.selectAll("line.h").data(yScale.ticks(5)).join("line")
       .attr("x1", 0).attr("x2", width).attr("y1", d => yScale(d)).attr("y2", d => yScale(d));
+
+    // Annotations
+    if (cfg.annotations && cfg.annotations.length > 0) {
+      const annG = g.append("g").attr("class", "ydi-annotations");
+      cfg.annotations.forEach(ann => {
+        const x1 = Math.max(0, xScale(ann.startX));
+        const x2 = Math.min(width, xScale(ann.endX));
+        annG.append("rect")
+          .attr("x", x1).attr("y", 0)
+          .attr("width", x2 - x1).attr("height", height)
+          .attr("fill", "#000").attr("opacity", 0.06);
+        if (ann.label) {
+          annG.append("text")
+            .attr("x", (x1 + x2) / 2).attr("y", -6)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#888").attr("font-size", 11)
+            .text(ann.label);
+        }
+      });
+    }
 
     const yFmt = d3.format(cfg.yFormat);
 

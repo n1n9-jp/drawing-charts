@@ -136,6 +136,24 @@ body {
   to   { fill-opacity: 0.5; }
 }
 
+/* Annotations */
+.ydi-annotations rect { pointer-events: none; }
+.ydi-annotations text { pointer-events: none; }
+
+/* Annotation form */
+.ydi-annotation-row { align-items: flex-end; }
+.ydi-annotation-row .ann-remove {
+  background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #999;
+  padding: 8px 4px; line-height: 1;
+}
+.ydi-annotation-row .ann-remove:hover { color: #c00; }
+#add-annotation {
+  background: none; border: 1px dashed #ccc; border-radius: 4px;
+  padding: 6px 14px; font-size: 0.85rem; color: #888; cursor: pointer;
+  margin-top: 4px;
+}
+#add-annotation:hover { border-color: #999; color: #555; }
+
 /* Value labels */
 .ydi-value-label {
   font-size: 13px;
@@ -620,6 +638,10 @@ body {
       <div></div>
     </div>
 
+    <h3>3. 期間アノテーション（任意）</h3>
+    <div id="annotations-list"></div>
+    <button type="button" id="add-annotation">+ 期間を追加</button>
+
     <div class="ydi-preview-section" id="preview-section" style="display:none">
       <h3>プレビュー</h3>
       <div id="preview-container"></div>
@@ -851,6 +873,26 @@ class ChartInstance {
       .attr("x2", width)
       .attr("y1", d => yScale(d))
       .attr("y2", d => yScale(d));
+
+    // --- Annotations ---
+    if (cfg.annotations && cfg.annotations.length > 0) {
+      const annG = g.append("g").attr("class", "ydi-annotations");
+      cfg.annotations.forEach(ann => {
+        const x1 = Math.max(0, xScale(ann.startX));
+        const x2 = Math.min(width, xScale(ann.endX));
+        annG.append("rect")
+          .attr("x", x1).attr("y", 0)
+          .attr("width", x2 - x1).attr("height", height)
+          .attr("fill", "#000").attr("opacity", 0.06);
+        if (ann.label) {
+          annG.append("text")
+            .attr("x", (x1 + x2) / 2).attr("y", -6)
+            .attr("text-anchor", "middle")
+            .attr("fill", "#888").attr("font-size", 11)
+            .text(ann.label);
+        }
+      });
+    }
 
     // --- Axes ---
     const yFmt = d3.format(cfg.yFormat);
@@ -1665,6 +1707,11 @@ function restoreFormFromConfig(cfg) {
   document.getElementById("quiz-title").value = cfg.title || "";
   document.getElementById("quiz-unit").value = cfg.unit || "";
   document.getElementById("quiz-style").value = cfg.style || "";
+  // Restore annotations
+  document.getElementById("annotations-list").innerHTML = "";
+  if (cfg.annotations) {
+    cfg.annotations.forEach(ann => addAnnotationRow(ann.startX, ann.endX, ann.label));
+  }
   if (cfg.drawStartX) {
     document.getElementById("quiz-draw-start").value = cfg.drawStartX;
   }
@@ -1938,6 +1985,15 @@ function buildConfig() {
   if (isNaN(drawStartX)) return null;
 
   const styleVal = document.getElementById("quiz-style").value;
+  const annotations = [];
+  document.querySelectorAll(".ydi-annotation-row").forEach(row => {
+    const startX = parseFloat(row.querySelector(".ann-start").value);
+    const endX = parseFloat(row.querySelector(".ann-end").value);
+    const label = row.querySelector(".ann-label").value.trim();
+    if (!isNaN(startX) && !isNaN(endX)) {
+      annotations.push({ startX, endX, label: label || "" });
+    }
+  });
   return {
     id: "preview",
     title: titleInput.value || "タイトル未設定",
@@ -1945,6 +2001,7 @@ function buildConfig() {
     drawStartX: drawStartX,
     unit: unitInput.value || "",
     style: styleVal || undefined,
+    annotations: annotations.length > 0 ? annotations : undefined,
     yFormat: ",.0f",
     precision: 0,
     yExtent: 1.5,
@@ -1958,6 +2015,29 @@ drawStartSelect.addEventListener("change", updatePreview);
 titleInput.addEventListener("input", updatePreview);
 unitInput.addEventListener("input", updatePreview);
 document.getElementById("quiz-style").addEventListener("change", updatePreview);
+
+// Annotation add/remove
+function addAnnotationRow(startX, endX, label) {
+  const list = document.getElementById("annotations-list");
+  const row = document.createElement("div");
+  row.className = "ydi-field-row ydi-annotation-row";
+  row.innerHTML = `
+    <div><label>開始</label><input type="number" class="ann-start" placeholder="例: 2009" value="${startX || ""}"></div>
+    <div><label>終了</label><input type="number" class="ann-end" placeholder="例: 2017" value="${endX || ""}"></div>
+    <div><label>ラベル</label><input type="text" class="ann-label" placeholder="例: オバマ政権" value="${label || ""}"></div>
+    <button type="button" class="ann-remove">&times;</button>
+  `;
+  row.querySelectorAll("input").forEach(inp => inp.addEventListener("input", updatePreview));
+  list.appendChild(row);
+  updatePreview();
+}
+document.getElementById("add-annotation").addEventListener("click", () => addAnnotationRow());
+document.getElementById("annotations-list").addEventListener("click", (e) => {
+  if (e.target.classList.contains("ann-remove")) {
+    e.target.closest(".ydi-annotation-row").remove();
+    updatePreview();
+  }
+});
 
 // --------------- 初期化 ---------------
 // No default charts — user uploads data
