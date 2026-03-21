@@ -1511,6 +1511,7 @@ document.getElementById("publish-copy").addEventListener("click", () => {
   const urlInput = document.getElementById("publish-url-input");
   navigator.clipboard.writeText(urlInput.value).then(() => {
     showMessage("URLをコピーしました", "success");
+    setTimeout(() => document.getElementById("publish-dialog").classList.remove("active"), 500);
   });
 });
 document.getElementById("publish-dialog").addEventListener("click", (e) => {
