@@ -2018,16 +2018,21 @@ document.getElementById("quiz-style").addEventListener("change", updatePreview);
 
 // Annotation add/remove
 function addAnnotationRow(startX, endX, label) {
+  if (!uploadedData || uploadedData.length === 0) return;
+  const xValues = uploadedData.map(d => d.x);
+  const options = xValues.map(x => `<option value="${x}"${x === startX ? " selected" : ""}>${x}</option>`).join("");
+  const optionsEnd = xValues.map(x => `<option value="${x}"${x === endX ? " selected" : ""}>${x}</option>`).join("");
   const list = document.getElementById("annotations-list");
   const row = document.createElement("div");
   row.className = "ydi-field-row ydi-annotation-row";
   row.innerHTML = `
-    <div><label>開始</label><input type="number" class="ann-start" placeholder="例: 2009" value="${startX || ""}"></div>
-    <div><label>終了</label><input type="number" class="ann-end" placeholder="例: 2017" value="${endX || ""}"></div>
+    <div><label>開始</label><select class="ann-start">${options}</select></div>
+    <div><label>終了</label><select class="ann-end">${optionsEnd}</select></div>
     <div><label>ラベル</label><input type="text" class="ann-label" placeholder="例: オバマ政権" value="${label || ""}"></div>
     <button type="button" class="ann-remove">&times;</button>
   `;
-  row.querySelectorAll("input").forEach(inp => inp.addEventListener("input", updatePreview));
+  row.querySelectorAll("select, input").forEach(el => el.addEventListener("change", updatePreview));
+  row.querySelector(".ann-label").addEventListener("input", updatePreview);
   list.appendChild(row);
   updatePreview();
 }
