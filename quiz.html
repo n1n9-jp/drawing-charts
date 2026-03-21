@@ -16,6 +16,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- D3.js -->
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="d3.sketchy.js"></script>
+<link href="https://fonts.googleapis.com/css?family=Patrick+Hand" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -110,6 +112,18 @@ body {
 }
 .ydi-share-btn:hover { background: #e0e0e0; }
 
+/* --- Sketchy style overrides --- */
+.ydi-chart-wrap.ydi-sketchy { background: #fffdf7; border-radius: 4px; box-shadow: 2px 3px 12px rgba(0,0,0,0.1); transform: rotate(-0.3deg); }
+.ydi-chart-wrap.ydi-sketchy h2 { font-family: 'Patrick Hand', cursive; font-size: 1.3rem; }
+.ydi-chart-wrap.ydi-sketchy svg { font: 300 14px/1.2 'Patrick Hand', cursive; }
+.ydi-chart-wrap.ydi-sketchy .ydi-grid line { stroke: #c8ddf0; stroke-width: 0.8; opacity: 0.6; }
+.ydi-chart-wrap.ydi-sketchy .axis path, .ydi-chart-wrap.ydi-sketchy .axis .domain { display: none; }
+.ydi-chart-wrap.ydi-sketchy .axis .tick line { stroke: #bbb; stroke-width: 0.5; }
+.ydi-chart-wrap.ydi-sketchy .axis text { fill: #555; font-size: 14px; font-family: 'Patrick Hand', cursive; }
+.ydi-chart-wrap.ydi-sketchy .ydi-value-label { font-family: 'Patrick Hand', cursive; font-size: 14px; }
+.ydi-chart-wrap.ydi-sketchy .ydi-legend-label { font-family: 'Patrick Hand', cursive; font-size: 13px; }
+.ydi-chart-wrap.ydi-sketchy .ydi-draw-prompt { font-family: 'Patrick Hand', cursive; }
+
 @media (max-width: 600px) {
   .quiz-app { padding: 20px 8px 12px; }
   .ydi-chart-wrap h2 { font-size: 1rem; }
@@ -155,6 +169,31 @@ function clamp(min, max, val) {
   return Math.max(min, Math.min(max, val));
 }
 
+// 手書き風ライン: データポイント間にjitterを加えてcurveBasisで補間
+function sketchyLinePath(points) {
+  const result = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x0, y0] = points[i];
+    const [x1, y1] = points[i + 1];
+    const steps = 8;
+    for (let j = 0; j <= steps; j++) {
+      const t = j / steps;
+      const jitterScale = Math.sin(t * Math.PI) * 2.5;
+      result.push([
+        x0 + (x1 - x0) * t + (Math.random() - 0.5) * jitterScale,
+        y0 + (y1 - y0) * t + (Math.random() - 0.5) * jitterScale,
+      ]);
+    }
+  }
+  return d3.line().curve(d3.curveBasis)(result);
+}
+
+function drawSketchyCircle(parent, cx, cy, r, fillColor) {
+  const dot = d3.sketchy.circle();
+  dot.radius(r).cx(cx).cy(cy).fill(fillColor).stroke(fillColor).strokeWidth(6);
+  parent.append("g").call(dot);
+}
+
 function mergeConfig(cfg) {
   return {
     ...DEFAULTS,
@@ -177,7 +216,7 @@ class ChartInstance {
   _buildDOM() {
     const { cfg } = this;
     const wrap = document.createElement("div");
-    wrap.className = "ydi-chart-wrap";
+    wrap.className = "ydi-chart-wrap" + (cfg.style === "sketchy" ? " ydi-sketchy" : "");
     wrap.id = `ydi-${cfg.id}`;
     wrap.innerHTML = `
       <h2>${cfg.title}</h2>
@@ -255,8 +294,20 @@ class ChartInstance {
 
     // Lines
     const line = d3.line().x(d => xScale(d.x)).y(d => yScale(d.y));
+    const sketchy = cfg.style === "sketchy";
+    const toPoints = (arr) => arr.map(d => [xScale(d.x), yScale(d.y)]);
     const knownData = data.filter(d => d.x <= drawStartX);
-    g.append("path").attr("class", "ydi-known-line").attr("d", line(knownData)).attr("stroke", cfg.colors.known);
+    if (sketchy) {
+      const kPts = toPoints(knownData);
+      g.append("path").attr("class", "ydi-known-line")
+        .attr("d", sketchyLinePath(kPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.known, 0.03))
+        .style("stroke-width", 3.5).style("opacity", 0.35);
+      g.append("path").attr("class", "ydi-known-line")
+        .attr("d", sketchyLinePath(kPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.known, 0.03))
+        .style("stroke-width", 2).style("opacity", 0.85);
+    } else {
+      g.append("path").attr("class", "ydi-known-line").attr("d", line(knownData)).attr("stroke", cfg.colors.known);
+    }
 
     // ClipPath
     const clipId = `ydi-clip-${cfg.id}`;
@@ -269,21 +320,43 @@ class ChartInstance {
     const area = d3.area().x(d => xScale(d.x)).y0(height).y1(d => yScale(d.y));
     const actualData = data.filter(d => d.x >= drawStartX);
     actualG.append("path").attr("class", "ydi-area").attr("d", area(actualData)).attr("fill", cfg.colors.actual);
-    actualG.append("path").attr("class", "ydi-actual-line").attr("d", line(actualData)).attr("stroke", cfg.colors.actual);
+    if (sketchy) {
+      const aPts = toPoints(actualData);
+      actualG.append("path").attr("class", "ydi-actual-line")
+        .attr("d", sketchyLinePath(aPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.actual, 0.03))
+        .style("stroke-width", 3.5).style("opacity", 0.35);
+      actualG.append("path").attr("class", "ydi-actual-line")
+        .attr("d", sketchyLinePath(aPts)).attr("stroke", d3.sketchy.randomColor(cfg.colors.actual, 0.03))
+        .style("stroke-width", 2).style("opacity", 0.85);
+    } else {
+      actualG.append("path").attr("class", "ydi-actual-line").attr("d", line(actualData)).attr("stroke", cfg.colors.actual);
+    }
 
     const endPt = data[data.length - 1];
-    actualG.append("circle").attr("cx", xScale(endPt.x)).attr("cy", yScale(endPt.y)).attr("r", 5).attr("fill", cfg.colors.actual);
+    if (sketchy) {
+      drawSketchyCircle(actualG, xScale(endPt.x), yScale(endPt.y), 4, cfg.colors.actual);
+    } else {
+      actualG.append("circle").attr("cx", xScale(endPt.x)).attr("cy", yScale(endPt.y)).attr("r", 5).attr("fill", cfg.colors.actual);
+    }
     actualG.append("text").attr("class", "ydi-value-label").attr("x", xScale(endPt.x) + 10)
       .attr("y", yScale(endPt.y)).attr("dy", "0.35em").attr("fill", cfg.colors.actual).text(yFmt(endPt.y) + cfg.unit);
 
     // Start & mid markers
     const startPt = data[0];
-    g.append("circle").attr("cx", xScale(startPt.x)).attr("cy", yScale(startPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
+    if (sketchy) {
+      drawSketchyCircle(g, xScale(startPt.x), yScale(startPt.y), 4, cfg.colors.known);
+    } else {
+      g.append("circle").attr("cx", xScale(startPt.x)).attr("cy", yScale(startPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
+    }
     g.append("text").attr("class", "ydi-value-label").attr("x", xScale(startPt.x)).attr("y", yScale(startPt.y) - 12)
       .attr("text-anchor", "middle").attr("fill", cfg.colors.known).text(yFmt(startPt.y) + cfg.unit);
 
     const midPt = data[drawStartIndex];
-    g.append("circle").attr("cx", xScale(midPt.x)).attr("cy", yScale(midPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
+    if (sketchy) {
+      drawSketchyCircle(g, xScale(midPt.x), yScale(midPt.y), 4, cfg.colors.known);
+    } else {
+      g.append("circle").attr("cx", xScale(midPt.x)).attr("cy", yScale(midPt.y)).attr("r", 5).attr("fill", cfg.colors.known);
+    }
     const midLabelDy = drawStartIndex > 0 && midPt.y > data[drawStartIndex - 1].y ? -12 : 16;
     g.append("text").attr("class", "ydi-value-label").attr("x", xScale(midPt.x) - 8)
       .attr("y", yScale(midPt.y) + midLabelDy).attr("text-anchor", "end").attr("fill", cfg.colors.known)
