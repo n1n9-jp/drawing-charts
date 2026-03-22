@@ -904,9 +904,11 @@ class ChartInstance {
       cfg.annotations.forEach(ann => {
         const x1 = Math.max(0, xScale(ann.startX));
         const x2 = Math.min(width, xScale(ann.endX));
+        const w = x2 - x1;
+        if (w <= 0) return;
         annG.append("rect")
           .attr("x", x1).attr("y", 0)
-          .attr("width", x2 - x1).attr("height", height)
+          .attr("width", w).attr("height", height)
           .attr("fill", "#000").attr("opacity", 0.06);
         if (ann.label) {
           annG.append("text")
@@ -2140,8 +2142,9 @@ document.getElementById("quiz-style").addEventListener("change", updatePreview);
 
 // Annotation add/remove
 function addAnnotationRow(startX, endX, label) {
-  if (!uploadedData || uploadedData.length === 0) return;
-  const xValues = uploadedData.map(d => d.x);
+  const filtered = getFilteredData();
+  if (!filtered || filtered.length === 0) return;
+  const xValues = filtered.map(d => d.x);
   const options = xValues.map(x => `<option value="${x}"${x === startX ? " selected" : ""}>${formatXForDropdown(x)}</option>`).join("");
   const optionsEnd = xValues.map(x => `<option value="${x}"${x === endX ? " selected" : ""}>${formatXForDropdown(x)}</option>`).join("");
   const list = document.getElementById("annotations-list");
