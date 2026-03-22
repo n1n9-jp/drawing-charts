@@ -76,7 +76,7 @@ body {
 .ydi-actual-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .ydi-area { opacity: 0.12; }
 .ydi-user-line { fill: none; stroke-width: 3; stroke-dasharray: 1 7; stroke-linecap: round; }
-.ydi-drag-rect { fill-opacity: 0; cursor: pointer; touch-action: none; }
+.ydi-drag-rect { fill: transparent; cursor: pointer; touch-action: none; pointer-events: all; }
 .ydi-flash-rect { fill: rgba(255, 200, 0, 0.7); fill-opacity: 0; }
 .ydi-flash-rect.ydi-pending { animation: ydi-flash 0.6s ease-in-out alternate infinite; }
 @keyframes ydi-flash { from { fill-opacity: 0; } to { fill-opacity: 0.5; } }
@@ -467,7 +467,7 @@ class ChartInstance {
     // Drag rect
     const dragRect = g.append("rect").attr("class", "ydi-drag-rect")
       .attr("x", xScale(drawStartX)).attr("y", 0).attr("width", xScale(endX) - xScale(drawStartX))
-      .attr("height", height).attr("fill", cfg.colors.user);
+      .attr("height", height);
 
     const self = this;
     const drag = d3.drag()
@@ -475,31 +475,6 @@ class ChartInstance {
       .on("start", function(event) { self._handleDrag(event, this); });
     dragRect.call(drag);
     g.on("click", function(event) { self._handleDrag(event, this); });
-
-    // タッチデバイス対応
-    if (!this._touchListenerAdded) {
-      this._touchListenerAdded = true;
-      this.svgContainer.style.touchAction = "none";
-      this.svgContainer.addEventListener("touchmove", (e) => {
-        if (self.state === "revealed" || !self.xScale || !self.yScale) return;
-        e.preventDefault();
-        const touch = e.touches[0];
-        const svgEl = self.svgContainer.querySelector("svg");
-        if (!svgEl) return;
-        const rect = svgEl.getBoundingClientRect();
-        const svgW = parseFloat(svgEl.getAttribute("width"));
-        const svgH = parseFloat(svgEl.getAttribute("height"));
-        const localX = (touch.clientX - rect.left) * (svgW / rect.width) - self.margin.left;
-        const localY = (touch.clientY - rect.top) * (svgH / rect.height) - self.margin.top;
-        const xVal = clamp(self.cfg.drawStartX + self.xStep * 0.5, self.endX + self.xStep * 0.5, self.xScale.invert(localX));
-        const yVal = clamp(self.yScale.domain()[0], self.yScale.domain()[1], self.yScale.invert(localY));
-        self._handleTouchDraw(xVal, yVal);
-      }, { passive: false });
-      this.svgContainer.addEventListener("touchstart", (e) => {
-        if (self.state === "revealed") return;
-        if (e.touches.length === 1) e.preventDefault();
-      }, { passive: false });
-    }
 
     // Annotation labels (on top of all elements)
     annLabels.forEach(a => {
@@ -523,24 +498,13 @@ class ChartInstance {
     }
   }
 
-  _handleTouchDraw(xVal, yVal) {
-    this._handleDragAt(xVal, yVal);
-  }
-
   _handleDrag(event, el) {
     if (this.state === "revealed") return;
-    const { xScale, yScale, cfg } = this;
+    const { xScale, yScale, cfg, userData } = this;
     const [mx, my] = d3.pointer(event, this.g.node());
     const xStep = this.xStep;
     const xVal = clamp(cfg.drawStartX + xStep * 0.5, this.endX + xStep * 0.5, xScale.invert(mx));
     const yVal = clamp(yScale.domain()[0], yScale.domain()[1], yScale.invert(my));
-    this._handleDragAt(xVal, yVal);
-  }
-
-  _handleDragAt(xVal, yVal) {
-    if (this.state === "revealed") return;
-    const { xScale, yScale, cfg, userData } = this;
-    const xStep = this.xStep;
 
     let lastDefinedIdx = 0;
     for (let i = userData.length - 1; i >= 0; i--) {

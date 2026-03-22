@@ -121,9 +121,10 @@ body {
 
 /* Drag rect */
 .ydi-drag-rect {
-  fill-opacity: 0;
+  fill: transparent;
   cursor: pointer;
   touch-action: none;
+  pointer-events: all;
 }
 
 /* Flash rects */
@@ -1139,8 +1140,7 @@ class ChartInstance {
       .attr("x", xScale(drawStartX))
       .attr("y", 0)
       .attr("width", xScale(endX) - xScale(drawStartX))
-      .attr("height", height)
-      .attr("fill", cfg.colors.user);
+      .attr("height", height);
 
     // --- Drag behavior ---
     const self = this;
@@ -1150,31 +1150,6 @@ class ChartInstance {
 
     dragRect.call(drag);
     g.on("click", function(event) { self._handleDrag(event, this); });
-
-    // タッチデバイス対応
-    if (!this._touchListenerAdded) {
-      this._touchListenerAdded = true;
-      this.svgContainer.style.touchAction = "none";
-      this.svgContainer.addEventListener("touchmove", (e) => {
-        if (self.state === "revealed" || !self.xScale || !self.yScale) return;
-        e.preventDefault();
-        const touch = e.touches[0];
-        const svgEl = self.svgContainer.querySelector("svg");
-        if (!svgEl) return;
-        const rect = svgEl.getBoundingClientRect();
-        const svgW = parseFloat(svgEl.getAttribute("width"));
-        const svgH = parseFloat(svgEl.getAttribute("height"));
-        const localX = (touch.clientX - rect.left) * (svgW / rect.width) - self.margin.left;
-        const localY = (touch.clientY - rect.top) * (svgH / rect.height) - self.margin.top;
-        const xVal = clamp(self.cfg.drawStartX + self.xStep * 0.5, self.endX + self.xStep * 0.5, self.xScale.invert(localX));
-        const yVal = clamp(self.yScale.domain()[0], self.yScale.domain()[1], self.yScale.invert(localY));
-        self._handleTouchDraw(xVal, yVal);
-      }, { passive: false });
-      this.svgContainer.addEventListener("touchstart", (e) => {
-        if (self.state === "revealed") return;
-        if (e.touches.length === 1) e.preventDefault();
-      }, { passive: false });
-    }
 
     // Store references
     this.yFmt = yFmt;
@@ -1209,28 +1184,11 @@ class ChartInstance {
     }
   }
 
-  _handleTouchDraw(xVal, yVal) {
-    this._handleDragAt(xVal, yVal);
-  }
-
   _handleDrag(event, el) {
     if (this.state === "revealed") return;
 
-    const { xScale, yScale, cfg } = this;
-    const [mx, my] = d3.pointer(event, this.g.node());
-    const drawStartX = cfg.drawStartX;
-    const endX = this.endX;
-    const xStep = this.xStep;
-
-    const xVal = clamp(drawStartX + xStep * 0.5, endX + xStep * 0.5, xScale.invert(mx));
-    const yVal = clamp(yScale.domain()[0], yScale.domain()[1], yScale.invert(my));
-    this._handleDragAt(xVal, yVal);
-  }
-
-  _handleDragAt(xVal, yVal) {
-    if (this.state === "revealed") return;
-
     const { xScale, yScale, cfg, userData, width, height } = this;
+    const [mx, my] = d3.pointer(event, this.g.node());
     const drawStartX = cfg.drawStartX;
     const endX = this.endX;
     const xStep = this.xStep;
