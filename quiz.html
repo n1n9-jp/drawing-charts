@@ -476,24 +476,28 @@ class ChartInstance {
     dragRect.call(drag);
     g.on("click", function(event) { self._handleDrag(event, this); });
 
-    // タッチデバイス対応: touchmoveで直接描画
-    const svgNode = svg.node();
-    svgNode.addEventListener("touchmove", (e) => {
-      if (self.state === "revealed") return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      const pt = svgNode.createSVGPoint();
-      pt.x = touch.clientX;
-      pt.y = touch.clientY;
-      const svgPt = pt.matrixTransform(self.g.node().getScreenCTM().inverse());
-      const xVal = clamp(cfg.drawStartX + xStep * 0.5, endX + xStep * 0.5, xScale.invert(svgPt.x));
-      const yVal = clamp(yScale.domain()[0], yScale.domain()[1], yScale.invert(svgPt.y));
-      self._handleTouchDraw(xVal, yVal);
-    }, { passive: false });
-    svgNode.addEventListener("touchstart", (e) => {
-      if (self.state === "revealed") return;
-      if (e.touches.length === 1) e.preventDefault();
-    }, { passive: false });
+    // タッチデバイス対応: svgContainerにリスナーを登録（svgは再作成されるため）
+    if (!this._touchListenerAdded) {
+      this._touchListenerAdded = true;
+      this.svgContainer.addEventListener("touchmove", (e) => {
+        if (self.state === "revealed") return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        const svgEl = self.svgContainer.querySelector("svg");
+        if (!svgEl || !self.g) return;
+        const pt = svgEl.createSVGPoint();
+        pt.x = touch.clientX;
+        pt.y = touch.clientY;
+        const svgPt = pt.matrixTransform(self.g.node().getScreenCTM().inverse());
+        const xVal = clamp(self.cfg.drawStartX + self.xStep * 0.5, self.endX + self.xStep * 0.5, self.xScale.invert(svgPt.x));
+        const yVal = clamp(self.yScale.domain()[0], self.yScale.domain()[1], self.yScale.invert(svgPt.y));
+        self._handleTouchDraw(xVal, yVal);
+      }, { passive: false });
+      this.svgContainer.addEventListener("touchstart", (e) => {
+        if (self.state === "revealed") return;
+        if (e.touches.length === 1) e.preventDefault();
+      }, { passive: false });
+    }
 
     // Annotation labels (on top of all elements)
     annLabels.forEach(a => {
