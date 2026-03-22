@@ -7,13 +7,13 @@
 <!-- OGP meta tags (defaults — updated dynamically via JS) -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="描いて答える折れ線グラフ — 結果">
-<meta property="og:description" content="折れ線グラフの予測結果をチェック！あなたも予測してみよう">
+<meta property="og:description" content="折れ線グラフの予想結果をチェック！あなたも予想してみよう">
 <meta property="og:site_name" content="描いて答える折れ線グラフ">
 <meta property="og:url" content="">
 <meta property="og:image" content="">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="描いて答える折れ線グラフ — 結果">
-<meta name="twitter:description" content="折れ線グラフの予測結果をチェック！あなたも予測してみよう">
+<meta name="twitter:description" content="折れ線グラフの予想結果をチェック！あなたも予想してみよう">
 <meta name="twitter:image" content="">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WXY3CQ3RNF"></script>
@@ -165,7 +165,7 @@ const DEFAULTS = {
   margin: { top: 20, right: 130, bottom: 40, left: 55 },
   colors: { known: "#7570b3", actual: "#1b9e77", user: "#d95f02" },
   buttonText: "答え合わせ",
-  drawPrompt: ["線を描いて", "予測してみよう"],
+  drawPrompt: ["線を描いて", "予想してみよう"],
   afterRevealHTML: "",
 };
 
@@ -503,7 +503,7 @@ class ChartInstance {
       legendG.append("line").attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
         .attr("stroke", cfg.colors.user).attr("stroke-width", 3).attr("stroke-dasharray", "1 7").attr("stroke-linecap", "round");
       legendG.append("text").attr("class", "ydi-legend-label").attr("x", 26).attr("y", 0)
-        .attr("dy", "0.35em").attr("fill", cfg.colors.user).text("予測");
+        .attr("dy", "0.35em").attr("fill", cfg.colors.user).text("予想");
       legendG.append("line").attr("x1", 0).attr("x2", 20).attr("y1", 22).attr("y2", 22)
         .attr("stroke", cfg.colors.actual).attr("stroke-width", 3).attr("stroke-linecap", "round");
       legendG.append("text").attr("class", "ydi-legend-label").attr("x", 26).attr("y", 22)
@@ -563,7 +563,7 @@ async function init() {
     const ogImageUrl = `${SUPABASE_URL}/storage/v1/object/public/quiz-og-images/${responseId}.png`;
     const sharePageUrl = `${DEPLOY_ORIGIN}/share.html?id=${responseId}`;
     const ogTitle = `${quiz.title} — ${response.score_label || "結果"}`;
-    const ogDesc = "折れ線グラフの予測結果をチェック！あなたも予測してみよう";
+    const ogDesc = "折れ線グラフの予想結果をチェック！あなたも予想してみよう";
 
     const setMeta = (attr, value, content) => {
       const el = document.querySelector(`meta[${attr}="${value}"]`);

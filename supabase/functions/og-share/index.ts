@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
   );
   const scoreLabel = escapeToAsciiHtml(response?.score_label || "\u7d50\u679c");
   const ogTitle = `${title} &#x2014; ${scoreLabel}`;
-  const ogDesc = escapeToAsciiHtml("\u6298\u308c\u7dda\u30b0\u30e9\u30d5\u306e\u4e88\u6e2c\u7d50\u679c\u3092\u30c1\u30a7\u30c3\u30af\uff01\u3042\u306a\u305f\u3082\u4e88\u6e2c\u3057\u3066\u307f\u3088\u3046");
+  const ogDesc = escapeToAsciiHtml("\u6298\u308c\u7dda\u30b0\u30e9\u30d5\u306e\u4e88\u60f3\u7d50\u679c\u3092\u30c1\u30a7\u30c3\u30af\uff01\u3042\u306a\u305f\u3082\u4e88\u60f3\u3057\u3066\u307f\u3088\u3046");
   const siteName = escapeToAsciiHtml("\u63cf\u3044\u3066\u7b54\u3048\u308b\u6298\u308c\u7dda\u30b0\u30e9\u30d5");
   const ogImage = `${SUPABASE_URL}/storage/v1/object/public/quiz-og-images/${id}.png`;
 
