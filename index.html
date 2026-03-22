@@ -1770,8 +1770,8 @@ function setupToolHeader() {
     toolHeader.setConfig({
       logo: { type: "text", text: "描いて答える折れ線グラフ" },
       buttons: [
-        { label: "保存", action: () => saveProject(), id: "save-btn" },
-        { label: "読込", action: () => loadProjectList(), id: "load-btn" },
+        { label: "プロジェクトの読込", action: () => loadProjectList(), id: "load-btn", align: "right" },
+        { label: "プロジェクトの保存", action: () => saveProject(), id: "save-btn", align: "right" },
       ],
     });
   }
