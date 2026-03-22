@@ -1151,6 +1151,25 @@ class ChartInstance {
     dragRect.call(drag);
     g.on("click", function(event) { self._handleDrag(event, this); });
 
+    // タッチデバイス対応: touchmoveで直接描画
+    const svgNode = svg.node();
+    svgNode.addEventListener("touchmove", (e) => {
+      if (self.state === "revealed") return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const pt = svgNode.createSVGPoint();
+      pt.x = touch.clientX;
+      pt.y = touch.clientY;
+      const svgPt = pt.matrixTransform(self.g.node().getScreenCTM().inverse());
+      const xVal = clamp(cfg.drawStartX + xStep * 0.5, endX + xStep * 0.5, xScale.invert(svgPt.x));
+      const yVal = clamp(yScale.domain()[0], yScale.domain()[1], yScale.invert(svgPt.y));
+      self._handleTouchDraw(xVal, yVal);
+    }, { passive: false });
+    svgNode.addEventListener("touchstart", (e) => {
+      if (self.state === "revealed") return;
+      if (e.touches.length === 1) e.preventDefault();
+    }, { passive: false });
+
     // Store references
     this.yFmt = yFmt;
     this.xStep = xStep;
@@ -1184,10 +1203,14 @@ class ChartInstance {
     }
   }
 
+  _handleTouchDraw(xVal, yVal) {
+    this._handleDragAt(xVal, yVal);
+  }
+
   _handleDrag(event, el) {
     if (this.state === "revealed") return;
 
-    const { xScale, yScale, cfg, userData, width, height } = this;
+    const { xScale, yScale, cfg } = this;
     const [mx, my] = d3.pointer(event, this.g.node());
     const drawStartX = cfg.drawStartX;
     const endX = this.endX;
@@ -1195,6 +1218,16 @@ class ChartInstance {
 
     const xVal = clamp(drawStartX + xStep * 0.5, endX + xStep * 0.5, xScale.invert(mx));
     const yVal = clamp(yScale.domain()[0], yScale.domain()[1], yScale.invert(my));
+    this._handleDragAt(xVal, yVal);
+  }
+
+  _handleDragAt(xVal, yVal) {
+    if (this.state === "revealed") return;
+
+    const { xScale, yScale, cfg, userData, width, height } = this;
+    const drawStartX = cfg.drawStartX;
+    const endX = this.endX;
+    const xStep = this.xStep;
 
     // Find last defined point for interpolation
     let lastDefinedIdx = 0;
