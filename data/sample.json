@@ -17,7 +17,7 @@
     "precision": 0,
     "yExtent": 1.2,
     "buttonText": "答え合わせ",
-    "drawPrompt": ["線を描いて", "予測してみよう"],
+    "drawPrompt": ["線を描いて", "予想してみよう"],
     "afterRevealHTML": "日本の人口は2008年の約1億2808万人をピークに減少に転じました。"
   },
   {
@@ -41,7 +41,7 @@
     "yExtent": 1.5,
     "colors": { "known": "#e67e22", "actual": "#2ecc71", "user": "#ffc700" },
     "buttonText": "答え合わせ",
-    "drawPrompt": ["線を描いて", "予測してみよう"],
+    "drawPrompt": ["線を描いて", "予想してみよう"],
     "afterRevealHTML": "訪日外国人は2011年の東日本大震災後に急回復し、2019年には3188万人に達しました。"
   }
 ]
