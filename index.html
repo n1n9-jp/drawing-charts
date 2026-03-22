@@ -1007,17 +1007,7 @@ class ChartInstance {
     const actualG = g.append("g")
       .attr("clip-path", `url(#${clipId})`);
 
-    // Area
-    const area = d3.area()
-      .x(d => xScale(d.x))
-      .y0(height)
-      .y1(d => yScale(d.y));
-
     const actualData = data.filter(d => d.x >= drawStartX);
-    actualG.append("path")
-      .attr("class", "ydi-area")
-      .attr("d", area(actualData))
-      .attr("fill", cfg.colors.actual);
 
     // Actual line (from drawStartX onward)
     if (sketchy) {

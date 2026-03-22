@@ -404,8 +404,6 @@ class ChartInstance {
 
     // Actual line (fully visible — no clipPath)
     const actualData = data.filter(d => d.x >= drawStartX);
-    const area = d3.area().x(d => xScale(d.x)).y0(height).y1(d => yScale(d.y));
-    g.append("path").attr("class", "ydi-area").attr("d", area(actualData)).attr("fill", cfg.colors.actual);
     if (sketchy) {
       const aPts = toPoints(actualData);
       g.append("path").attr("class", "ydi-actual-line")
