@@ -57,7 +57,7 @@ CREATE POLICY "Anyone can create quizzes" ON quiz_quizzes FOR INSERT WITH CHECK 
 
 ### quiz_responses テーブル
 
-クイズの回答データ（ユーザーの予測、スコア）を保存する。
+クイズの回答データ（ユーザーの予想、スコア）を保存する。
 
 ```sql
 CREATE TABLE quiz_responses (
