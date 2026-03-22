@@ -43,6 +43,7 @@ body {
   font-size: 1rem;
 }
 .quiz-error { color: #c00; }
+.quiz-lead { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 8px; }
 
 /* --- Chart styles (same as index.html) --- */
 .ydi-chart-wrap {
@@ -155,6 +156,7 @@ body {
 <div class="quiz-app" id="app">
   <div class="quiz-loading" id="quiz-loading">読み込み中...</div>
   <div class="quiz-error" id="quiz-error" style="display:none"></div>
+  <p class="quiz-lead" id="quiz-lead" style="display:none">タップで線を描いてください</p>
   <div id="quiz-container" style="display:none"></div>
   <div class="site-links">
     <a href="https://www.dataviz.jp/drawing-line-chart/">描いて答える折れ線グラフ</a>
@@ -829,6 +831,7 @@ async function init() {
     // Render chart
     loadingEl.style.display = "none";
     containerEl.style.display = "block";
+    document.getElementById("quiz-lead").style.display = "block";
     document.title = quiz.title + " — 描いて答える折れ線グラフ";
 
     const cfg = { ...quiz.chart_config, id: quizId };
