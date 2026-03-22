@@ -592,6 +592,49 @@ class ChartInstance {
 // --------------- Supabaseクライアント初期化 ---------------
 const quizSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// --------------- チャート画像ダウンロード ---------------
+function downloadChartPng(svgEl, title) {
+  if (!svgEl) return;
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  // 計算済みスタイルをインライン化
+  const inlineStyles = (srcEl, cloneEl) => {
+    const computed = window.getComputedStyle(srcEl);
+    ["fill","stroke","stroke-width","stroke-dasharray","stroke-linecap",
+     "stroke-linejoin","opacity","fill-opacity","stroke-opacity","font-family",
+     "font-size","font-weight","text-anchor","display","visibility"].forEach(prop => {
+      const val = computed.getPropertyValue(prop);
+      if (val) cloneEl.style.setProperty(prop, val);
+    });
+    for (let i = 0; i < srcEl.children.length; i++) {
+      if (cloneEl.children[i]) inlineStyles(srcEl.children[i], cloneEl.children[i]);
+    }
+  };
+  inlineStyles(svgEl, clone);
+  clone.querySelectorAll(".ydi-flash-rect, .ydi-drag-rect, .ydi-draw-prompt").forEach(el => el.remove());
+  const svgData = new XMLSerializer().serializeToString(clone);
+  const svgW = parseFloat(svgEl.getAttribute("width")) || 640;
+  const svgH = parseFloat(svgEl.getAttribute("height")) || 400;
+  const canvas = document.createElement("canvas");
+  canvas.width = svgW * 2;
+  canvas.height = svgH * 2;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const img = new Image();
+  const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    const a = document.createElement("a");
+    a.download = (title || "chart") + ".png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  };
+  img.src = url;
+}
+
 // --------------- OG画像生成 ---------------
 async function generateOgImage(svgEl, title, scoreLabel) {
   const clone = svgEl.cloneNode(true);
@@ -776,6 +819,7 @@ async function init() {
             <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
               <a class="ydi-share-btn" id="share-x-btn" href="https://x.com/intent/tweet?url=${encodeURIComponent(ogShareUrl)}&text=${encodeURIComponent(quiz.title + "　" + label)}" target="_blank" rel="noopener">𝕏 でシェア</a>
               <button class="ydi-share-btn" id="share-copy-btn">URLをコピー</button>
+              <button class="ydi-share-btn" id="download-png-btn">画像を保存</button>
             </div>
           </div>
         `;
@@ -785,6 +829,10 @@ async function init() {
             document.getElementById("share-copy-btn").textContent = "コピー済み";
             setTimeout(() => { document.getElementById("share-copy-btn").textContent = "URLをコピー"; }, 2000);
           });
+        });
+
+        document.getElementById("download-png-btn").addEventListener("click", () => {
+          downloadChartPng(containerEl.querySelector("svg"), quiz.title);
         });
 
         // OG画像を生成・アップロード（非同期・失敗しても問題なし）
