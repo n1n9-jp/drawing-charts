@@ -323,7 +323,14 @@ class ChartInstance {
             const step = Math.max(1, Math.ceil(allX.length / maxTicks));
             return allX.filter((_, i) => i % step === 0 || i === allX.length - 1);
           })())
-        .tickFormat(d => d === startX ? d : "'" + String(d).slice(-2)).tickSize(6));
+        .tickFormat(d => {
+            if (cfg.xFormat === "yyyymm") {
+              const y = Math.floor(d);
+              const m = Math.round((d - y) * 12) + 1;
+              return y + "/" + String(m).padStart(2, "0");
+            }
+            return d === startX ? d : "'" + String(d).slice(-2);
+          }).tickSize(6));
     xAxisG.select(".domain").remove();
 
     // Y labels

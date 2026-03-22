@@ -719,6 +719,7 @@ body {
 let uploadedData = null; // [{x, y}, ...]
 let csvRawRows = null;   // CSVの生データ（列選択変更用）
 let csvCols = null;      // CSVの列名リスト
+let currentXFormat = "year"; // "year" or "yyyymm"
 
 // --------------- デフォルト設定 ---------------
 const DEFAULTS = {
@@ -932,7 +933,14 @@ class ChartInstance {
             const step = Math.max(1, Math.ceil(allX.length / maxTicks));
             return allX.filter((_, i) => i % step === 0 || i === allX.length - 1);
           })())
-          .tickFormat(d => d === startX ? d : "'" + String(d).slice(-2))
+          .tickFormat(d => {
+            if (cfg.xFormat === "yyyymm") {
+              const y = Math.floor(d);
+              const m = Math.round((d - y) * 12) + 1;
+              return y + "/" + String(m).padStart(2, "0");
+            }
+            return d === startX ? d : "'" + String(d).slice(-2);
+          })
           .tickSize(6)
       );
     xAxisG.select(".domain").remove();
@@ -1857,13 +1865,46 @@ fileInput.addEventListener("change", (e) => {
   if (e.target.files[0]) handleFile(e.target.files[0]);
 });
 
-// 時系列列判定: 年(4桁数値)または日付文字列を含む列
+/// 時系列列判定: 年(4桁)、年月(6桁YYYYMM)、日付文字列を含む列
 function isTimeSeriesCol(rows, col) {
   const sample = rows.slice(0, Math.min(10, rows.length));
   return sample.filter(r => {
     const v = String(r[col]).trim();
-    return /^\d{4}$/.test(v) || /\d{4}[-\/]/.test(v);
+    return /^\d{4}$/.test(v) || /^\d{6}$/.test(v) || /\d{4}[-\/]/.test(v);
   }).length > sample.length * 0.5;
+}
+
+// YYYYMM → 小数年に変換（例: 201003 → 2010.167）
+function parseTimeValue(raw) {
+  const s = String(raw).trim();
+  if (/^\d{6}$/.test(s)) {
+    const y = parseInt(s.slice(0, 4));
+    const m = parseInt(s.slice(4, 6));
+    return y + (m - 1) / 12;
+  }
+  let x = parseFloat(s);
+  if (isNaN(x)) {
+    const dateMatch = s.match(/(\d{4})/);
+    if (dateMatch) x = parseInt(dateMatch[1]);
+  }
+  return x;
+}
+
+// 小数年をラベルに変換（ドロップダウン表示用）
+function formatXForDropdown(val) {
+  if (currentXFormat === "yyyymm") {
+    const y = Math.floor(val);
+    const m = Math.round((val - y) * 12) + 1;
+    return y + "/" + String(m).padStart(2, "0");
+  }
+  return String(val);
+}
+
+// X軸のフォーマッタを決定（YYYYMM形式か年のみか）
+function detectXFormat(rows, col) {
+  const sample = rows.slice(0, Math.min(10, rows.length));
+  const isYYYYMM = sample.filter(r => /^\d{6}$/.test(String(r[col]).trim())).length > sample.length * 0.5;
+  return isYYYYMM ? "yyyymm" : "year";
 }
 // 数値列判定: 大半の行が数値に変換できる列
 function isNumericCol(rows, col) {
@@ -1874,14 +1915,11 @@ function isNumericCol(rows, col) {
 // 選択中の列でデータをパースし直す
 function parseWithColumns(xColName, yColName) {
   if (!csvRawRows) return;
+  currentXFormat = detectXFormat(csvRawRows, xColName);
   const parsed = csvRawRows.map(d => {
     const rawX = d[xColName];
     const rawY = d[yColName];
-    let x = parseFloat(rawX);
-    if (isNaN(x)) {
-      const dateMatch = String(rawX).match(/(\d{4})/);
-      if (dateMatch) x = parseInt(dateMatch[1]);
-    }
+    const x = parseTimeValue(rawX);
     const y = parseFloat(String(rawY).replace(/,/g, ""));
     return { x, y };
   }).filter(d => !isNaN(d.x) && !isNaN(d.y));
@@ -1933,14 +1971,11 @@ function handleFile(file) {
         colYSel.innerHTML = numericCols.map(c => `<option value="${c}"${c === autoY ? " selected" : ""}>${c}</option>`).join("");
         document.getElementById("col-select-row").style.display = "";
 
+        currentXFormat = detectXFormat(rows, autoX);
         parsed = rows.map(d => {
           const rawX = d[autoX];
           const rawY = d[autoY];
-          let x = parseFloat(rawX);
-          if (isNaN(x)) {
-            const dateMatch = String(rawX).match(/(\d{4})/);
-            if (dateMatch) x = parseInt(dateMatch[1]);
-          }
+          const x = parseTimeValue(rawX);
           const y = parseFloat(String(rawY).replace(/,/g, ""));
           return { x, y };
         });
@@ -1995,8 +2030,8 @@ function onDataLoaded() {
   const periodStartSel = document.getElementById("period-start");
   const periodEndSel = document.getElementById("period-end");
   const allXValues = uploadedData.map(d => d.x);
-  periodStartSel.innerHTML = allXValues.map(x => `<option value="${x}">${x}</option>`).join("");
-  periodEndSel.innerHTML = allXValues.map(x => `<option value="${x}">${x}</option>`).join("");
+  periodStartSel.innerHTML = allXValues.map(x => `<option value="${x}">${formatXForDropdown(x)}</option>`).join("");
+  periodEndSel.innerHTML = allXValues.map(x => `<option value="${x}">${formatXForDropdown(x)}</option>`).join("");
   periodStartSel.value = allXValues[0];
   periodEndSel.value = allXValues[allXValues.length - 1];
   periodStartSel.disabled = false;
@@ -2028,7 +2063,7 @@ function populateDrawStart() {
     if (i === 0 || i === xValues.length - 1) return;
     const opt = document.createElement("option");
     opt.value = x;
-    opt.textContent = x;
+    opt.textContent = formatXForDropdown(x);
     if (i === midIdx) opt.selected = true;
     drawStartSelect.appendChild(opt);
   });
@@ -2080,6 +2115,7 @@ function buildConfig() {
     drawStartX: drawStartX,
     unit: unitInput.value || "",
     style: styleVal || undefined,
+    xFormat: currentXFormat !== "year" ? currentXFormat : undefined,
     annotations: annotations.length > 0 ? annotations : undefined,
     yFormat: ",.0f",
     precision: 0,
