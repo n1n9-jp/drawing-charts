@@ -475,6 +475,7 @@ class ChartInstance {
       .on("start", function(event) { self._handleDrag(event, this); });
     dragRect.call(drag);
     g.on("click", function(event) { self._handleDrag(event, this); });
+    this._bindTouchHandlers();
 
     // Annotation labels (on top of all elements)
     annLabels.forEach(a => {
@@ -498,10 +499,12 @@ class ChartInstance {
     }
   }
 
-  _handleDrag(event, el) {
+  _handleDrag(event, el, rawMx, rawMy) {
     if (this.state === "revealed") return;
     const { xScale, yScale, cfg, userData } = this;
-    const [mx, my] = d3.pointer(event, this.g.node());
+    let mx, my;
+    if (rawMx !== undefined) { mx = rawMx; my = rawMy; }
+    else { [mx, my] = d3.pointer(event, this.g.node()); }
     const xStep = this.xStep;
     const xVal = clamp(cfg.drawStartX + xStep * 0.5, this.endX + xStep * 0.5, xScale.invert(mx));
     const yVal = clamp(yScale.domain()[0], yScale.domain()[1], yScale.invert(my));
@@ -547,6 +550,21 @@ class ChartInstance {
     if (userData.every(d => d.defined) && this.state !== "ready") {
       this.state = "ready"; this.wrapEl.classList.add("ydi-ready");
     }
+  }
+
+  _bindTouchHandlers() {
+    const self = this;
+    const svgNode = this.svg.node();
+    function onTouch(e) {
+      if (self.state === "revealed") return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (!touch) return;
+      const rect = self.g.node().getBoundingClientRect();
+      self._handleDrag(null, null, touch.clientX - rect.left, touch.clientY - rect.top);
+    }
+    svgNode.addEventListener("touchstart", onTouch, { passive: false });
+    svgNode.addEventListener("touchmove", onTouch, { passive: false });
   }
 
   _reveal() {
