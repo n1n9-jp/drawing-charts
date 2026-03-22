@@ -2016,10 +2016,17 @@ function onDataLoaded() {
   const colYLabel = document.getElementById("col-y").value || "y";
   let htmlX = `<table><thead><tr><th>${colXLabel}</th></tr></thead><tbody>`;
   let htmlY = `<table><thead><tr><th>${colYLabel}</th></tr></thead><tbody>`;
-  uploadedData.forEach(d => {
-    htmlX += `<tr><td>${d.x}</td></tr>`;
-    htmlY += `<tr><td>${d.y}</td></tr>`;
-  });
+  if (csvRawRows && csvCols) {
+    csvRawRows.forEach(row => {
+      htmlX += `<tr><td>${row[colXLabel] || ""}</td></tr>`;
+      htmlY += `<tr><td>${row[colYLabel] || ""}</td></tr>`;
+    });
+  } else {
+    uploadedData.forEach(d => {
+      htmlX += `<tr><td>${d.x}</td></tr>`;
+      htmlY += `<tr><td>${d.y}</td></tr>`;
+    });
+  }
   htmlX += "</tbody></table>";
   htmlY += "</tbody></table>";
   document.getElementById("data-preview-x").innerHTML = htmlX;
