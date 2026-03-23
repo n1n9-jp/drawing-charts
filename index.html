@@ -33,7 +33,7 @@ body {
 }
 
 .you-draw-it {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 124px 16px 20px;
 }
@@ -57,6 +57,7 @@ body {
   margin-bottom: 48px;
   position: relative;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   padding: 16px;
 }
 
@@ -446,11 +447,8 @@ body {
 .ydi-create h2 {
   font-size: 1.1rem;
   font-weight: 700;
-  margin-top: 28px;
-  margin-bottom: 16px;
-}
-.ydi-create h2:first-child {
   margin-top: 0;
+  margin-bottom: 0;
 }
 .ydi-create label {
   display: block;
@@ -576,7 +574,90 @@ body {
 .ydi-chart-wrap.ydi-sketchy .ydi-legend-label { font-family: 'Patrick Hand', cursive; font-size: 13px; }
 .ydi-chart-wrap.ydi-sketchy .ydi-draw-prompt { font-family: 'Patrick Hand', cursive; }
 
+/* --- Two-column layout --- */
+.ydi-two-column {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+.ydi-left-panel {
+  flex: 0 0 420px;
+  min-width: 0;
+}
+.ydi-right-panel {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.ydi-preview-sticky {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 80px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 20px;
+}
+.ydi-preview-sticky .ydi-chart-wrap {
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+/* --- Accordion --- */
+.ydi-accordion-step {
+  border-bottom: 1px solid #eee;
+}
+.ydi-accordion-step:last-child {
+  border-bottom: none;
+}
+.ydi-step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 14px 0;
+  user-select: none;
+}
+.ydi-step-header h2 {
+  margin: 0;
+  pointer-events: none;
+}
+.ydi-step-header .ydi-chevron {
+  transition: transform 0.3s;
+  font-size: 0.75rem;
+  color: #999;
+}
+.ydi-accordion-step.open .ydi-chevron {
+  transform: rotate(180deg);
+}
+.ydi-step-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.ydi-accordion-step.open .ydi-step-body {
+  max-height: 2000px;
+  padding-bottom: 8px;
+}
+
+/* --- Preview placeholder --- */
+.ydi-preview-placeholder {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 60px 20px;
+  text-align: center;
+  color: #999;
+  font-size: 0.9rem;
+  background: #fafafa;
+}
+
 /* --- Responsive --- */
+@media (max-width: 900px) {
+  .ydi-two-column { flex-direction: column; }
+  .ydi-left-panel { flex: none; width: 100%; }
+  .ydi-right-panel { flex: none; width: 100%; }
+  .ydi-preview-sticky { position: static; }
+}
 @media (max-width: 600px) {
   .you-draw-it { padding: 108px 8px 12px; }
   .you-draw-it h1 { font-size: 1.3rem; }
@@ -594,85 +675,130 @@ body {
   <h1>描いて答える折れ線グラフ</h1>
   <p class="intro">データをアップロードして、クイズを作成しよう。</p>
 
-  <!-- クイズ作成フォーム -->
-  <div class="ydi-create" id="create-form">
-    <div class="ydi-section-header">
-      <h2>1. データをアップロード</h2>
-      <select class="ydi-sample-select" id="sample-select">
-        <option value="">サンプルデータ</option>
-      </select>
-    </div>
-    <div class="ydi-dropzone" id="dropzone">
-      <p>CSVファイルをドラッグ＆ドロップ、またはクリックして選択</p>
-      <p style="font-size:0.8rem;margin-top:4px">形式: x,y（1行目はヘッダー）</p>
-      <input type="file" id="file-input" accept=".csv,.json">
-    </div>
-    <div class="ydi-field-row" id="col-select-row" style="display:none; margin-top: 12px">
-      <div>
-        <label for="col-x">X軸（時系列）</label>
-        <select id="col-x"></select>
+  <div class="ydi-two-column">
+    <!-- 左パネル: 設定フォーム -->
+    <div class="ydi-left-panel">
+      <div class="ydi-create" id="create-form">
+
+        <!-- Step 1: データアップロード -->
+        <div class="ydi-accordion-step open" data-step="1">
+          <div class="ydi-step-header">
+            <h2>1. データをアップロード</h2>
+            <span class="ydi-chevron">&#9660;</span>
+          </div>
+          <div class="ydi-step-body">
+            <div class="ydi-section-header" style="margin-bottom:8px">
+              <select class="ydi-sample-select" id="sample-select">
+                <option value="">サンプルデータ</option>
+              </select>
+            </div>
+            <div class="ydi-dropzone" id="dropzone">
+              <p>CSVファイルをドラッグ＆ドロップ、またはクリックして選択</p>
+              <p style="font-size:0.8rem;margin-top:4px">形式: x,y（1行目はヘッダー）</p>
+              <input type="file" id="file-input" accept=".csv,.json">
+            </div>
+            <div class="ydi-field-row" id="col-select-row" style="display:none; margin-top: 12px">
+              <div>
+                <label for="col-x">X軸（時系列）</label>
+                <select id="col-x"></select>
+              </div>
+              <div>
+                <label for="col-y">Y軸（数値）</label>
+                <select id="col-y"></select>
+              </div>
+            </div>
+            <div class="ydi-field-row" id="data-preview" style="display:none">
+              <div class="ydi-data-preview" id="data-preview-x"></div>
+              <div class="ydi-data-preview" id="data-preview-y"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: 対象期間 -->
+        <div class="ydi-accordion-step" data-step="2">
+          <div class="ydi-step-header">
+            <h2>2. 対象期間</h2>
+            <span class="ydi-chevron">&#9660;</span>
+          </div>
+          <div class="ydi-step-body">
+            <div class="ydi-field-row" id="period-select-row" style="display:none">
+              <div>
+                <label for="period-start">開始</label>
+                <select id="period-start" disabled>
+                  <option value="">データを先にアップロード</option>
+                </select>
+              </div>
+              <div>
+                <label for="period-end">終了</label>
+                <select id="period-end" disabled>
+                  <option value="">データを先にアップロード</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: クイズの設定 -->
+        <div class="ydi-accordion-step" data-step="3">
+          <div class="ydi-step-header">
+            <h2>3. クイズの設定</h2>
+            <span class="ydi-chevron">&#9660;</span>
+          </div>
+          <div class="ydi-step-body">
+            <label for="quiz-title">タイトル（質問文）</label>
+            <input type="text" id="quiz-title" placeholder="例: 日本の人口はどう推移した？">
+
+            <div class="ydi-field-row">
+              <div>
+                <label for="quiz-draw-start">ここから予想（出題範囲の開始）</label>
+                <select id="quiz-draw-start" disabled>
+                  <option value="">データを先にアップロード</option>
+                </select>
+              </div>
+              <div>
+                <label for="quiz-unit">単位（任意）</label>
+                <input type="text" id="quiz-unit" placeholder="例: %, 万人, $">
+              </div>
+            </div>
+
+            <div class="ydi-field-row">
+              <div>
+                <label for="quiz-style">スタイル</label>
+                <select id="quiz-style">
+                  <option value="">標準</option>
+                  <option value="sketchy">手書き風</option>
+                </select>
+              </div>
+              <div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: アノテーション -->
+        <div class="ydi-accordion-step" data-step="4">
+          <div class="ydi-step-header">
+            <h2>4. 期間アノテーション（任意）</h2>
+            <span class="ydi-chevron">&#9660;</span>
+          </div>
+          <div class="ydi-step-body">
+            <div id="annotations-list"></div>
+            <button type="button" id="add-annotation">+ 期間を追加</button>
+          </div>
+        </div>
+
       </div>
-      <div>
-        <label for="col-y">Y軸（数値）</label>
-        <select id="col-y"></select>
-      </div>
-    </div>
-    <div class="ydi-field-row" id="data-preview" style="display:none">
-      <div class="ydi-data-preview" id="data-preview-x"></div>
-      <div class="ydi-data-preview" id="data-preview-y"></div>
     </div>
 
-    <h2>2. 対象期間</h2>
-    <div class="ydi-field-row" id="period-select-row" style="display:none">
-      <div>
-        <label for="period-start">開始</label>
-        <select id="period-start" disabled>
-          <option value="">データを先にアップロード</option>
-        </select>
+    <!-- 右パネル: プレビュー -->
+    <div class="ydi-right-panel">
+      <div class="ydi-preview-sticky">
+        <div class="ydi-preview-placeholder" id="preview-placeholder">
+          <p>データをアップロードすると<br>プレビューが表示されます</p>
+        </div>
+        <div class="ydi-preview-section" id="preview-section" style="display:none">
+          <div id="preview-container"></div>
+        </div>
       </div>
-      <div>
-        <label for="period-end">終了</label>
-        <select id="period-end" disabled>
-          <option value="">データを先にアップロード</option>
-        </select>
-      </div>
-    </div>
-
-    <h2>3. クイズの設定</h2>
-    <label for="quiz-title">タイトル（質問文）</label>
-    <input type="text" id="quiz-title" placeholder="例: 日本の人口はどう推移した？">
-
-    <div class="ydi-field-row">
-      <div>
-        <label for="quiz-draw-start">ここから予想（出題範囲の開始）</label>
-        <select id="quiz-draw-start" disabled>
-          <option value="">データを先にアップロード</option>
-        </select>
-      </div>
-      <div>
-        <label for="quiz-unit">単位（任意）</label>
-        <input type="text" id="quiz-unit" placeholder="例: %, 万人, $">
-      </div>
-    </div>
-
-    <div class="ydi-field-row">
-      <div>
-        <label for="quiz-style">スタイル</label>
-        <select id="quiz-style">
-          <option value="">標準</option>
-          <option value="sketchy">手書き風</option>
-        </select>
-      </div>
-      <div></div>
-    </div>
-
-    <h2>4. 期間アノテーション（任意）</h2>
-    <div id="annotations-list"></div>
-    <button type="button" id="add-annotation">+ 期間を追加</button>
-
-    <div class="ydi-preview-section" id="preview-section" style="display:none">
-      <h3>プレビュー</h3>
-      <div id="preview-container"></div>
     </div>
   </div>
 </div>
@@ -1794,6 +1920,8 @@ function restoreFormFromConfig(cfg) {
     document.getElementById("quiz-draw-start").value = cfg.drawStartX;
   }
   updatePreview();
+  // プロジェクト復元時は全ステップを開く
+  openStep(1); openStep(2); openStep(3); openStep(4);
 }
 
 // --------------- ツールヘッダー設定 ---------------
@@ -2081,6 +2209,11 @@ function onDataLoaded() {
 
   populateDrawStart();
   updatePreview();
+
+  // アコーディオン自動遷移: ステップ1を閉じて2,3を開く
+  closeStep(1);
+  openStep(2);
+  openStep(3);
 }
 
 // 対象期間に応じたデータをフィルタして返す
@@ -2123,6 +2256,8 @@ function updatePreview() {
     const cfg = buildConfig();
     if (!cfg) return;
 
+    const placeholder = document.getElementById("preview-placeholder");
+    if (placeholder) placeholder.style.display = "none";
     previewSection.style.display = "block";
     previewContainer.innerHTML = "";
     // Remove existing chart wraps from preview
@@ -2199,6 +2334,21 @@ document.getElementById("annotations-list").addEventListener("click", (e) => {
     e.target.closest(".ydi-annotation-row").remove();
     updatePreview();
   }
+});
+
+// --------------- アコーディオン制御 ---------------
+function openStep(n) {
+  const step = document.querySelector(`.ydi-accordion-step[data-step="${n}"]`);
+  if (step) step.classList.add("open");
+}
+function closeStep(n) {
+  const step = document.querySelector(`.ydi-accordion-step[data-step="${n}"]`);
+  if (step) step.classList.remove("open");
+}
+document.querySelectorAll(".ydi-step-header").forEach(header => {
+  header.addEventListener("click", () => {
+    header.closest(".ydi-accordion-step").classList.toggle("open");
+  });
 });
 
 // --------------- 初期化 ---------------
