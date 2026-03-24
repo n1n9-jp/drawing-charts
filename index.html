@@ -147,15 +147,30 @@ body {
 .ydi-annotations text { pointer-events: none; }
 
 /* Annotation form */
-.ydi-annotation-row { align-items: flex-end; }
-.ydi-annotation-row .ann-remove-wrap {
-  flex: 0 0 auto;
+.ydi-annotation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #eee;
 }
+.ydi-annotation-row .ann-label-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.ydi-annotation-row .ann-label-wrap label { flex: 0 0 100%; font-size: 0.85rem; font-weight: 600; color: #555; }
+.ydi-annotation-row .ann-label-wrap input { flex: 1; min-width: 0; }
 .ydi-annotation-row .ann-remove {
-  background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #999;
-  padding: 8px 12px; margin-bottom: 14px; display: block;
+  flex: none;
+  background: none; border: 1px solid #ddd; border-radius: 4px;
+  font-size: 0.95rem; cursor: pointer; color: #999;
+  padding: 8px 10px;
 }
-.ydi-annotation-row .ann-remove:hover { color: #c00; }
+.ydi-annotation-row .ann-remove:hover { color: #c00; border-color: #c00; }
 #add-annotation {
   background: none; border: 1px dashed #ccc; border-radius: 4px;
   padding: 6px 14px; font-size: 0.85rem; color: #888; cursor: pointer;
@@ -481,7 +496,7 @@ body {
   margin-bottom: 0;
 }
 .ydi-create .ydi-sample-select {
-  width: 140px;
+  width: 100%;
   padding: 6px 10px;
   font-size: 0.85rem;
   border: 1px solid #ccc;
@@ -793,6 +808,16 @@ body {
             <span class="ydi-chevron">&#9660;</span>
           </div>
           <div class="ydi-step-body">
+            <div class="ydi-field-row" style="margin-bottom:8px">
+              <div>
+                <label for="ann-granularity">期間の粒度</label>
+                <select id="ann-granularity">
+                  <option value="year">年</option>
+                  <option value="yyyymm">年月</option>
+                </select>
+              </div>
+              <div></div>
+            </div>
             <div id="annotations-list"></div>
             <button type="button" id="add-annotation">+ 期間を追加</button>
           </div>
@@ -2195,6 +2220,7 @@ document.getElementById("col-y").addEventListener("change", () => {
 function onDataLoaded() {
   // アノテーション粒度をデータに合わせてデフォルト設定
   annGranularity.value = currentXFormat === "yyyymm" ? "yyyymm" : "year";
+
   // Update dropzone
   dropzone.classList.add("loaded");
   dropzone.querySelector("p").textContent = `${uploadedData.length}件のデータを読み込みました`;
@@ -2334,26 +2360,65 @@ unitInput.addEventListener("input", updatePreview);
 document.getElementById("quiz-style").addEventListener("change", updatePreview);
 
 // Annotation add/remove
-function addAnnotationRow(startX, endX, label) {
+const annGranularity = document.getElementById("ann-granularity");
+
+// アノテーション粒度に応じた選択肢を生成
+function getAnnotationOptions(selectedVal) {
   const filtered = getFilteredData();
-  if (!filtered || filtered.length === 0) return;
-  const xValues = filtered.map(d => d.x);
-  const options = xValues.map(x => `<option value="${x}"${x === startX ? " selected" : ""}>${formatXForDropdown(x)}</option>`).join("");
-  const optionsEnd = xValues.map(x => `<option value="${x}"${x === endX ? " selected" : ""}>${formatXForDropdown(x)}</option>`).join("");
+  if (!filtered || filtered.length < 2) return "";
+  const granularity = annGranularity.value;
+  const minX = Math.floor(filtered[0].x);
+  const maxX = Math.ceil(filtered[filtered.length - 1].x);
+  const values = [];
+  if (granularity === "yyyymm") {
+    for (let y = minX; y <= maxX; y++) {
+      for (let m = 1; m <= 12; m++) {
+        const val = +(y + (m - 1) / 12).toFixed(6);
+        if (val > filtered[filtered.length - 1].x + 0.001) break;
+        values.push({ val, label: y + "/" + String(m).padStart(2, "0") });
+      }
+    }
+  } else {
+    for (let y = minX; y <= maxX; y++) {
+      values.push({ val: y, label: String(y) });
+    }
+  }
+  return values.map(v => {
+    const sel = (selectedVal !== undefined && Math.abs(v.val - selectedVal) < 0.001) ? " selected" : "";
+    return `<option value="${v.val}"${sel}>${v.label}</option>`;
+  }).join("");
+}
+
+function addAnnotationRow(startX, endX, label) {
+  const optionsStart = getAnnotationOptions(startX);
+  const optionsEnd = getAnnotationOptions(endX);
+  if (!optionsStart) return;
   const list = document.getElementById("annotations-list");
   const row = document.createElement("div");
-  row.className = "ydi-field-row ydi-annotation-row";
+  row.className = "ydi-annotation-row";
   row.innerHTML = `
-    <div><label>開始</label><select class="ann-start">${options}</select></div>
+    <div><label>開始</label><select class="ann-start">${optionsStart}</select></div>
     <div><label>終了</label><select class="ann-end">${optionsEnd}</select></div>
-    <div><label>ラベル</label><input type="text" class="ann-label" placeholder="例: オバマ政権" value="${label || ""}"></div>
-    <div class="ann-remove-wrap"><label>&nbsp;</label><button type="button" class="ann-remove">&times;</button></div>
+    <div class="ann-label-wrap"><label>ラベル</label><input type="text" class="ann-label" placeholder="例: 高市内閣" value="${label || ""}"><button type="button" class="ann-remove">&times;</button></div>
   `;
   row.querySelectorAll("select, input").forEach(el => el.addEventListener("change", updatePreview));
   row.querySelector(".ann-label").addEventListener("input", updatePreview);
   list.appendChild(row);
   updatePreview();
 }
+
+// 粒度変更時: 既存アノテーション行の選択肢を再生成（値とラベルは保持）
+annGranularity.addEventListener("change", () => {
+  document.querySelectorAll(".ydi-annotation-row").forEach(row => {
+    const startSel = row.querySelector(".ann-start");
+    const endSel = row.querySelector(".ann-end");
+    const startVal = parseFloat(startSel.value);
+    const endVal = parseFloat(endSel.value);
+    startSel.innerHTML = getAnnotationOptions(startVal);
+    endSel.innerHTML = getAnnotationOptions(endVal);
+  });
+  updatePreview();
+});
 document.getElementById("add-annotation").addEventListener("click", () => addAnnotationRow());
 document.getElementById("annotations-list").addEventListener("click", (e) => {
   if (e.target.classList.contains("ann-remove")) {
