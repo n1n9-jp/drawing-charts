@@ -47,12 +47,11 @@ body {
 
 /* --- Chart styles (same as index.html) --- */
 .ydi-chart-wrap {
-  margin-bottom: 48px;
+  margin-bottom: 0;
   position: relative;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   padding: 16px;
-  padding-bottom: 0;
 }
 .ydi-chart-wrap h2 {
   font-size: 1.15rem;
@@ -88,11 +87,11 @@ body {
 .ydi-endpoint { transition: opacity 0.3s; }
 .ydi-drag-started .ydi-draw-prompt { opacity: 0; }
 .ydi-drag-started .ydi-flash-rect.ydi-pending { animation: ydi-flash 0.4s ease-in-out alternate infinite; }
-.ydi-button-area { text-align: center; margin: 16px -16px 0; padding: 12px 16px; transition: opacity 0.3s; }
+.ydi-button-area { text-align: center; padding: 16px 0; transition: opacity 0.3s; }
 .ydi-button { display: inline-block; padding: 10px 28px; font-size: 15px; font-weight: 600; color: #fff; background: #333; border: none; border-radius: 4px; cursor: pointer; opacity: 0.25; pointer-events: none; transition: opacity 0.3s, background 0.2s; }
 .ydi-ready .ydi-button { opacity: 1; pointer-events: auto; }
 .ydi-button:hover { background: #555; }
-.ydi-after-reveal { text-align: center; margin: 0 -16px; padding: 12px 16px; font-size: 0.95rem; color: #555; opacity: 0; max-height: 0; overflow: hidden; transition: opacity 0.5s 0.6s, max-height 0.5s 0.6s; }
+.ydi-after-reveal { text-align: center; padding: 0 0 16px; font-size: 0.95rem; color: #555; opacity: 0; max-height: 0; overflow: hidden; transition: opacity 0.5s 0.6s, max-height 0.5s 0.6s; }
 .ydi-guessed .ydi-button-area { opacity: 0; pointer-events: none; }
 .ydi-guessed .ydi-after-reveal { opacity: 1; max-height: 300px; }
 .ydi-guessed .ydi-drag-rect { pointer-events: none; }
@@ -262,15 +261,22 @@ class ChartInstance {
     wrap.innerHTML = `
       <h2>${cfg.title}</h2>
       <div class="ydi-svg-container"></div>
+    `;
+    this.parentEl.appendChild(wrap);
+    // ボタン・結果表示はチャート枠の外
+    const outerArea = document.createElement("div");
+    outerArea.className = "ydi-outer-area";
+    outerArea.innerHTML = `
       <div class="ydi-button-area">
         <button class="ydi-button">${cfg.buttonText}</button>
       </div>
       <div class="ydi-after-reveal">${cfg.afterRevealHTML}</div>
     `;
-    this.parentEl.appendChild(wrap);
+    this.parentEl.appendChild(outerArea);
     this.wrapEl = wrap;
+    this.outerArea = outerArea;
     this.svgContainer = wrap.querySelector(".ydi-svg-container");
-    this.buttonEl = wrap.querySelector(".ydi-button");
+    this.buttonEl = outerArea.querySelector(".ydi-button");
     this.buttonEl.addEventListener("click", () => this._reveal());
   }
 
@@ -546,7 +552,7 @@ class ChartInstance {
     }
 
     if (userData.every(d => d.defined) && this.state !== "ready") {
-      this.state = "ready"; this.wrapEl.classList.add("ydi-ready");
+      this.state = "ready"; this.wrapEl.classList.add("ydi-ready"); this.outerArea.classList.add("ydi-ready");
     }
   }
 
@@ -582,6 +588,7 @@ class ChartInstance {
     if (this.state !== "ready") return;
     this.state = "revealed";
     this.wrapEl.classList.add("ydi-guessed");
+    this.outerArea.classList.add("ydi-guessed");
 
     const { xScale, yScale, width, margin, cfg, userData } = this;
 
@@ -628,7 +635,7 @@ class ChartInstance {
     }));
     this.scoreResult = { totalError, avgRatio, label, cls };
 
-    const afterEl = this.wrapEl.querySelector(".ydi-after-reveal");
+    const afterEl = this.outerArea.querySelector(".ydi-after-reveal");
     afterEl.innerHTML = `<div class="ydi-score ${cls}">${label}</div>`;
 
     // Dispatch event
