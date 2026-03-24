@@ -334,7 +334,8 @@ class ChartInstance {
     const annLabels = [];
     if (cfg.annotations && cfg.annotations.length > 0) {
       const annG = g.append("g").attr("class", "ydi-annotations");
-      cfg.annotations.forEach((ann, i) => {
+      const sortedAnns = [...cfg.annotations].sort((a, b) => a.startX - b.startX);
+      sortedAnns.forEach((ann, i) => {
         const x1 = Math.max(0, xScale(ann.startX));
         const x2 = Math.min(width, xScale(ann.endX));
         const w = x2 - x1;
