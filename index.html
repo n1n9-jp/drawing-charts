@@ -493,6 +493,18 @@ body {
   outline: none;
   border-color: #333;
 }
+.ydi-data-source {
+  font-size: 0.75rem;
+  color: #aaa;
+  margin: 4px 0 8px;
+}
+.ydi-data-source a {
+  color: #aaa;
+  text-decoration: underline;
+}
+.ydi-data-source a:hover {
+  color: #666;
+}
 .ydi-create .ydi-field-row {
   display: flex;
   gap: 12px;
@@ -692,9 +704,9 @@ body {
                 <option value="">サンプルデータ</option>
               </select>
             </div>
+            <p class="ydi-data-source" id="data-source"></p>
             <div class="ydi-dropzone" id="dropzone">
               <p>CSVファイルをドラッグ＆ドロップ、またはクリックして選択</p>
-              <p style="font-size:0.8rem;margin-top:4px">形式: x,y（1行目はヘッダー）</p>
               <input type="file" id="file-input" accept=".csv,.json">
             </div>
             <div class="ydi-field-row" id="col-select-row" style="display:none; margin-top: 12px">
@@ -1928,37 +1940,29 @@ function restoreFormFromConfig(cfg) {
 // --------------- サンプルデータ ---------------
 const SAMPLE_DATA = [
   {
-    id: "unemployment",
-    title: "米国の失業率はオバマ政権下でどう変化した？",
-    data: [
-      { x: 2000, y: 4.0 }, { x: 2001, y: 4.7 }, { x: 2002, y: 5.8 },
-      { x: 2003, y: 6.0 }, { x: 2004, y: 5.5 }, { x: 2005, y: 5.1 },
-      { x: 2006, y: 4.6 }, { x: 2007, y: 4.6 }, { x: 2008, y: 5.8 },
-      { x: 2009, y: 9.3 }, { x: 2010, y: 9.6 }, { x: 2011, y: 8.9 },
-      { x: 2012, y: 8.1 }, { x: 2013, y: 7.4 }, { x: 2014, y: 6.2 },
-      { x: 2015, y: 5.3 }, { x: 2016, y: 4.9 },
-    ],
-    drawStartX: 2008, unit: "%", yFormat: ".1f", precision: 1, yExtent: 1.8,
-  },
-  {
     id: "population",
     title: "日本の人口（万人）はどう推移した？",
-    data: [
-      { x: 1990, y: 12361 }, { x: 1995, y: 12557 }, { x: 2000, y: 12693 },
-      { x: 2005, y: 12777 }, { x: 2010, y: 12806 }, { x: 2015, y: 12710 },
-      { x: 2020, y: 12615 },
-    ],
+    file: "data/japan-population.csv",
     drawStartX: 2005, unit: "万人", yFormat: ",.0f", precision: 0, yExtent: 1.2,
+    sourceText: "総務省統計局 人口推計",
+    sourceURL: "https://www.stat.go.jp/data/jinsui/",
+  },
+  {
+    id: "yen-dollar",
+    title: "円ドル為替レート（年平均）はどう推移した？",
+    file: "data/yen-dollar-exchange_year.csv",
+    drawStartX: 2020, unit: "円/$", yFormat: ".1f", precision: 1, yExtent: 1.5,
+    sourceText: "日本銀行時系列統計データ検索サイト",
+    sourceURL: "https://www.stat-search.boj.or.jp/index.html",
   },
   {
     id: "visitors",
-    title: "訪日外国人数（万人）はどう増えた？",
-    data: [
-      { x: 2003, y: 521 }, { x: 2005, y: 673 }, { x: 2007, y: 835 },
-      { x: 2009, y: 679 }, { x: 2011, y: 622 }, { x: 2013, y: 1036 },
-      { x: 2015, y: 1974 }, { x: 2017, y: 2869 }, { x: 2019, y: 3188 },
-    ],
-    drawStartX: 2011, unit: "万人", yFormat: ",.0f", precision: 0, yExtent: 1.5,
+    title: "訪日外国人数（万人）はどう推移した？",
+    file: "data/japan-visitors-all.csv",
+    xCol: "国名", yCol: "総数", yDivisor: 10000,
+    drawStartX: 2015, unit: "万人", yFormat: ",.0f", precision: 0, yExtent: 1.5,
+    sourceText: "訪日外客統計",
+    sourceURL: "https://www.jnto.go.jp/statistics/data/visitors-statistics/",
   },
 ];
 
@@ -1987,11 +1991,29 @@ SAMPLE_DATA.forEach((s, i) => {
   opt.textContent = s.title;
   sampleSelect.appendChild(opt);
 });
-sampleSelect.addEventListener("change", () => {
+sampleSelect.addEventListener("change", async () => {
   const idx = sampleSelect.value;
   if (idx === "") return;
-  restoreFormFromConfig(SAMPLE_DATA[parseInt(idx)]);
-  sampleSelect.value = "";
+  const sample = SAMPLE_DATA[parseInt(idx)];
+  try {
+    const res = await fetch(sample.file);
+    const text = await res.text();
+    const rows = d3.csvParse(text);
+    const xCol = sample.xCol || "date";
+    const yCol = sample.yCol || "value";
+    const divisor = sample.yDivisor || 1;
+    const data = rows
+      .filter(r => r[yCol] !== undefined && String(r[yCol]).trim() !== "")
+      .map(r => ({ x: parseFloat(String(r[xCol]).replace(/[^0-9.\-]/g, "")), y: parseFloat(r[yCol]) / divisor }))
+      .filter(d => !isNaN(d.x) && !isNaN(d.y));
+    restoreFormFromConfig({ ...sample, data });
+    const srcEl = document.getElementById("data-source");
+    if (sample.sourceText && sample.sourceURL) {
+      srcEl.innerHTML = `出典: <a href="${sample.sourceURL}" target="_blank" rel="noopener">${sample.sourceText}</a>`;
+    }
+  } catch (err) {
+    console.error("サンプルデータの読み込みに失敗:", err);
+  }
 });
 const dataPreview = document.getElementById("data-preview");
 const drawStartSelect = document.getElementById("quiz-draw-start");
@@ -2101,6 +2123,8 @@ function parseWithColumns(xColName, yColName) {
 }
 
 function handleFile(file) {
+  sampleSelect.value = "";
+  document.getElementById("data-source").innerHTML = "";
   const reader = new FileReader();
   reader.onload = (e) => {
     const text = e.target.result;
@@ -2169,6 +2193,8 @@ document.getElementById("col-y").addEventListener("change", () => {
 });
 
 function onDataLoaded() {
+  // アノテーション粒度をデータに合わせてデフォルト設定
+  annGranularity.value = currentXFormat === "yyyymm" ? "yyyymm" : "year";
   // Update dropzone
   dropzone.classList.add("loaded");
   dropzone.querySelector("p").textContent = `${uploadedData.length}件のデータを読み込みました`;
