@@ -127,6 +127,66 @@ body {
 .site-links a:hover { color: #555; text-decoration: underline; }
 .site-links span { margin: 0 6px; color: #ccc; }
 
+/* ===========================================
+   タブレット 10-feet UI (600px〜1080px)
+   大きく・見やすく・迷わない
+   =========================================== */
+@media (min-width: 600px) and (max-width: 1080px) {
+  .share-app {
+    max-width: 100%;
+    padding: 24px 20px 20px;
+  }
+
+  /* --- チャートを画面いっぱいに --- */
+  .ydi-chart-wrap {
+    padding: 24px 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+  }
+  .ydi-chart-wrap h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+  .ydi-value-label {
+    font-size: 16px;
+  }
+  .ydi-chart-wrap .axis text {
+    font-size: 14px;
+  }
+  .ydi-legend-label {
+    font-size: 14px;
+  }
+
+  /* --- スコア表示を大きく --- */
+  .ydi-score {
+    padding: 12px 28px;
+    font-size: 1.2rem;
+    border-radius: 24px;
+  }
+  .share-result {
+    margin-top: 32px;
+  }
+
+  /* --- 大きなCTAボタン (10-feet UI: 60px+) --- */
+  .share-cta {
+    padding: 18px 56px;
+    font-size: 1.3rem;
+    border-radius: 12px;
+    min-height: 60px;
+    margin-top: 28px;
+    letter-spacing: 0.04em;
+  }
+
+  /* --- フッター --- */
+  .site-links {
+    font-size: 1rem;
+    padding: 32px 0;
+  }
+  .site-links a {
+    padding: 12px 8px;
+  }
+}
+
 @media (max-width: 600px) {
   .share-app { padding: 20px 8px 12px; }
   .ydi-chart-wrap h2 { font-size: 1rem; }
@@ -343,14 +403,22 @@ class ChartInstance {
 
   _render() {
     const { cfg } = this;
-    const isMobile = window.innerWidth < 600;
+    const screenW = window.innerWidth;
+    const isMobile = screenW < 600;
+    const isTablet = screenW >= 600 && screenW <= 1080;
     this.svgContainer.innerHTML = "";
 
     const totalWidth = this.svgContainer.offsetWidth || 560;
     const margin = { ...cfg.margin };
     if (isMobile) { margin.right = 70; margin.left = 40; }
+    else if (isTablet) {
+      margin.top = 28; margin.right = 120; margin.bottom = 48; margin.left = 56;
+    }
     const width = totalWidth - margin.left - margin.right;
-    const height = cfg.height;
+    // タブレット: 画面高さの50%を使い、最低350px・最大550pxで大きく表示
+    const height = isTablet
+      ? Math.max(350, Math.min(550, Math.round(window.innerHeight * 0.50)))
+      : cfg.height;
 
     const data = cfg.data;
     const startX = data[0].x;
